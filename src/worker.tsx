@@ -1,4 +1,4 @@
-import { render, route } from "rwsdk/router";
+import { render, route, layout } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 import { defineDurableSession } from "rwsdk/auth";
 import { env } from "cloudflare:workers";
@@ -8,6 +8,7 @@ import { D1Dialect } from "kysely-d1";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
+import { AppLayout } from "@/app/layouts/AppLayout";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";
 import type { Database } from "./db/schema";
@@ -69,5 +70,9 @@ export default defineApp([
     );
     return new Response(null, { status: 302, headers });
   }),
-  render(Document, [route("/", Home)]),
+  render(Document, [
+    layout(({ children, requestInfo }) => <AppLayout currentPath={requestInfo?.path || '/'}>{children}</AppLayout>, [
+      route("/", Home)
+    ])
+  ]),
 ]);
