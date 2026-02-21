@@ -58,7 +58,7 @@ describe('wellnessRouter', () => {
       });
 
       expect(result).toBeDefined();
-      expect(result.rhr).toBe(55);
+      expect(result!.rhr).toBe(55);
     });
 
     it('should throw UNAUTHORIZED for unauthenticated user', async () => {
