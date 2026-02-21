@@ -43,7 +43,7 @@ describe('dashboardRouter', () => {
       const result = await caller.getReadinessView({
         date: '2026-02-21',
         history_days: 28,
-      });
+      }) as any;
 
       expect(result).toBeDefined();
       expect(result.acwr).toBeDefined();

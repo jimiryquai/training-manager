@@ -77,37 +77,33 @@ Tailwind v4 uses `@theme` block in CSS:
 
 ## Fate Data View Resolution
 
-### Current Issue (UNRESOLVED)
-Fate's `resolve()` is masking data - only returning `id` fields instead of all selected fields.
+### Original Issue (RESOLVED)
+Fate's `resolve()` was masking data - only returning `id` fields instead of all selected fields.
 
-```typescript
-// Expected to return all fields defined in view:
-const WellnessMetricView = dataView<WellnessMetric>('WellnessMetric')({
-  id: true,
-  date: true,
-  rhr: true,
-  hrv_rmssd: true,
-  hrv_ratio: true,
-});
+### Root Cause
+The `createResolver()` function requires explicit **nested field paths** in the `select` array:
+- ❌ Wrong: `['wellnessHistory']` → returns only `id` in each item
+- ✅ Right: `['wellnessHistory.id', 'wellnessHistory.date', 'wellnessHistory.rhr', ...]`
 
-// But only id was returned in items
+### Additional Behavior
+List fields are wrapped in GraphQL/Relay-style connection objects:
+```json
+{
+  "items": [{ "cursor": "id", "node": { ...data } }],
+  "pagination": { "hasNext": false, "hasPrevious": false }
+}
 ```
 
-### Temporary Bypass
-Currently returning data directly without Fate resolution:
-```typescript
-return {
-  acwr: acwrData,
-  wellnessHistory: wellnessData,
-};
-```
+### Solution Implemented
+1. Created `src/fate/utils.ts` with:
+   - `generateSelectPaths(view)` - auto-generates all nested paths from a view definition
+   - `unwrapConnection(connection)` - extracts plain arrays from connection objects
 
-### Needs Investigation
-- Is `select` parameter being passed correctly?
-- Is Fate's `list()` wrapper working with our data shape?
-- Check @nkzw/fate version and docs
+2. Updated `src/fate/dashboardRouter.ts`:
+   - Uses `generateSelectPaths(ReadinessView)` when no explicit select provided
+   - Uses `unwrapConnection()` for backward compatibility with existing client
 
----
+### Files Modified This Session
 
 ## Client-Side Data Fetching
 
@@ -140,7 +136,7 @@ Calculate historical ACWR - each day's ratio based on that day's acute/chronic l
 
 ---
 
-## Files Modified This Session
+### Files Modified This Session
 
 | File | Change |
 |------|--------|
@@ -151,4 +147,8 @@ Calculate historical ACWR - each day's ratio based on that day's acute/chronic l
 | `src/app/styles/globals.css` | Added @theme block with shadcn colors |
 | `src/app/components/ui/button.tsx` | Added cursor-pointer |
 | `src/app/hooks/useReadinessData.ts` | Fixed URL path |
-| `src/fate/dashboardRouter.ts` | Bypassed Fate resolve() temporarily |
+| `src/fate/dashboardRouter.ts` | Fixed Fate resolve() with auto-generated select paths |
+| `src/fate/views.ts` | Added ACWRHistoryPointView |
+| `src/fate/utils.ts` | Created generateSelectPaths() and unwrapConnection() helpers |
+| `tests/fate/fate-resolve.test.ts` | Added tests documenting Fate behavior |
+| `tests/fate/dashboardRouter.test.ts` | Updated test for new return type |

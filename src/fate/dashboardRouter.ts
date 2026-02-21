@@ -5,6 +5,7 @@ import { calculateAcuteLoad, calculateChronicLoad } from '../services/acwr.servi
 import { getDailyWellnessByDateRange } from '../services/dailyWellness.service';
 import { getWorkoutSessionsByDateRange } from '../services/workoutSession.service';
 import { ReadinessView, type ACWRData, type WellnessMetric, type ACWRHistoryPoint } from './views';
+import { generateSelectPaths, unwrapConnection } from './utils';
 
 const getReadinessViewSchema = z.object({
   date: z.string(),
@@ -70,10 +71,24 @@ export const dashboardRouter = router({
         isDanger: currentAcwr.isDanger,
       };
 
-      return {
+      const select = input.select ?? generateSelectPaths(ReadinessView);
+
+      const { resolve } = createResolver({
+        ctx,
+        select,
+        view: ReadinessView,
+      });
+
+      const resolved = await resolve({
         acwr: acwrData,
         acwrHistory,
         wellnessHistory: wellnessData,
+      });
+
+      return {
+        ...resolved,
+        acwrHistory: unwrapConnection((resolved as any).acwrHistory),
+        wellnessHistory: unwrapConnection((resolved as any).wellnessHistory),
       };
     }),
 });
