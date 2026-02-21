@@ -24,11 +24,13 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@nkzw/fate": "^0.1.3",
     "@trpc/server": "^11.10.0",
     "kysely": "^0.28.11",
     "kysely-d1": "^0.4.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-fate": "^0.1.3",
     "react-server-dom-webpack": "19.2.4",
     "rwsdk": "1.0.0-beta.54"
   },
