@@ -11,7 +11,7 @@ import type { LogWellnessInput } from '@/app/components/forms/schemas';
 import type { LogWorkoutInput } from '@/app/components/forms/schemas';
 
 async function submitWellness(data: LogWellnessInput) {
-  const response = await fetch('/api/trpc/wellness.logDailyMetrics', {
+  const response = await fetch('/trpc/wellness.logDailyMetrics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -21,7 +21,7 @@ async function submitWellness(data: LogWellnessInput) {
 }
 
 async function submitWorkout(data: LogWorkoutInput) {
-  const response = await fetch('/api/trpc/training.logSession', {
+  const response = await fetch('/trpc/training.logSession', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -71,14 +71,18 @@ export function Dashboard() {
     );
   }
 
-  const chartData = data?.wellnessHistory.map((w) => ({
-    date: w.date,
-    ratio: data.acwr?.ratio || 0,
-    acute_load: data.acwr?.acute_load || 0,
-    chronic_load: data.acwr?.chronic_load || 0,
-    rhr: w.rhr,
-    hrv_rmssd: w.hrv_rmssd,
-  })) || [];
+  const acwrMap = new Map(data?.acwrHistory?.map(a => [a.date, a]) ?? []);
+  const chartData = data?.wellnessHistory.map((w) => {
+    const acwr = acwrMap.get(w.date);
+    return {
+      date: w.date,
+      ratio: acwr?.ratio ?? 0,
+      acute_load: acwr?.acute_load ?? 0,
+      chronic_load: acwr?.chronic_load ?? 0,
+      rhr: w.rhr,
+      hrv_rmssd: w.hrv_rmssd,
+    };
+  }) || [];
 
   return (
     <div className="container mx-auto p-4 space-y-6">

@@ -46,6 +46,37 @@ export async function createDailyWellness(
   };
 }
 
+export async function upsertDailyWellness(
+  db: Kysely<Database>,
+  input: CreateDailyWellnessInput
+): Promise<DailyWellnessRecord | undefined> {
+  const now = new Date().toISOString();
+  const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
+
+  const existing = await getDailyWellnessByDate(db, input);
+  
+  if (existing) {
+    const result = await db
+      .updateTable('daily_wellness')
+      .set({
+        rhr: input.rhr,
+        hrv_rmssd: input.hrv_rmssd,
+        updated_at: now
+      })
+      .where('id', '=', existing.id)
+      .returningAll()
+      .executeTakeFirst();
+
+    if (!result) return undefined;
+    return {
+      ...result,
+      hrv_ratio
+    };
+  }
+
+  return createDailyWellness(db, input);
+}
+
 export interface GetDailyWellnessInput {
   tenant_id: string;
   user_id: string;

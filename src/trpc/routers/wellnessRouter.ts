@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { router } from '../trpc';
 import { protectedProcedure } from '../trpc';
-import { createDailyWellness, getDailyWellnessByDate, getDailyWellnessByDateRange } from '../../services/dailyWellness.service';
+import { createDailyWellness, upsertDailyWellness, getDailyWellnessByDate, getDailyWellnessByDateRange } from '../../services/dailyWellness.service';
 
 const logDailyMetricsSchema = z.object({
   date: z.string(),
@@ -22,7 +22,7 @@ export const wellnessRouter = router({
   logDailyMetrics: protectedProcedure
     .input(logDailyMetricsSchema)
     .mutation(async ({ ctx, input }) => {
-      return createDailyWellness(ctx.db, {
+      return upsertDailyWellness(ctx.db, {
         tenant_id: ctx.tenantId,
         user_id: ctx.userId,
         date: input.date,

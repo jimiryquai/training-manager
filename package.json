@@ -21,7 +21,8 @@
     "check": "npm run generate && npm run types",
     "types": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "seed": "rwsdk worker-run ./src/scripts/seed.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

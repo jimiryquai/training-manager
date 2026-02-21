@@ -17,6 +17,15 @@ export interface WellnessMetric {
   [key: string]: unknown;
 }
 
+export interface ACWRHistoryPoint {
+  date: string;
+  acute_load: number;
+  chronic_load: number;
+  ratio: number;
+  isDanger: boolean;
+  [key: string]: unknown;
+}
+
 export const ACWRView = dataView<ACWRData>('ACWR')({
   acute_load: true,
   chronic_load: true,
@@ -32,14 +41,24 @@ export const WellnessMetricView = dataView<WellnessMetric>('WellnessMetric')({
   hrv_ratio: true,
 });
 
+export const ACWRHistoryPointView = dataView<ACWRHistoryPoint>('ACWRHistoryPoint')({
+  date: true,
+  acute_load: true,
+  chronic_load: true,
+  ratio: true,
+  isDanger: true,
+});
+
 export interface ReadinessViewData {
   acwr: ACWRData;
+  acwrHistory: ACWRHistoryPoint[];
   wellnessHistory: WellnessMetric[];
   [key: string]: unknown;
 }
 
 export const ReadinessView = dataView<ReadinessViewData>('Readiness')({
   acwr: ACWRView,
+  acwrHistory: list(ACWRHistoryPointView),
   wellnessHistory: list(WellnessMetricView),
 });
 

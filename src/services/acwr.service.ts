@@ -50,7 +50,7 @@ export function calculateChronicLoad(
     })
     .reduce((sum, s) => sum + s.training_load, 0);
 
-  return totalLoad / 28;
+  return totalLoad / 4;
 }
 
 export async function calculateACWR(

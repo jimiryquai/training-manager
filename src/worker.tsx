@@ -42,9 +42,32 @@ export default defineApp([
   async function sessionMiddleware({ request, ctx }) {
     const session = await sessionStore.load(request);
     ctx.session = session;
+    
+    // Dev-only: Check for dev session cookie
+    if (!session && import.meta.env.DEV) {
+      const cookies = request.headers.get("cookie") || "";
+      const devSession = cookies.match(/dev_session=([^;]+)/)?.[1];
+      if (devSession === "seed-user-001:seed-tenant-001") {
+        ctx.session = {
+          userId: "seed-user-001",
+          tenantId: "seed-tenant-001",
+        };
+      }
+    }
   },
-  route("/trpc/*", async ({ request }) => {
-    return trpcHandler(request);
+  route("/trpc/*", async ({ request, ctx }) => {
+    return trpcHandler(request, ctx.session ?? undefined);
+  }),
+  route("/dev-login", async ({ request }) => {
+    if (!import.meta.env.DEV) {
+      return new Response("Not found", { status: 404 });
+    }
+    const headers = new Headers({ Location: "/" });
+    headers.set(
+      "Set-Cookie",
+      "dev_session=seed-user-001:seed-tenant-001; Path=/; HttpOnly; SameSite=Lax"
+    );
+    return new Response(null, { status: 302, headers });
   }),
   render(Document, [route("/", Home)]),
 ]);

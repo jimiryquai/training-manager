@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import { router, protectedProcedure } from '../trpc/trpc';
 import { createResolver } from '@nkzw/fate/server';
-import { calculateACWR } from '../services/acwr.service';
+import { calculateAcuteLoad, calculateChronicLoad } from '../services/acwr.service';
 import { getDailyWellnessByDateRange } from '../services/dailyWellness.service';
-import { ReadinessView, type ACWRData, type WellnessMetric } from './views';
+import { getWorkoutSessionsByDateRange } from '../services/workoutSession.service';
+import { ReadinessView, type ACWRData, type WellnessMetric, type ACWRHistoryPoint } from './views';
 
 const getReadinessViewSchema = z.object({
   date: z.string(),
@@ -19,34 +20,23 @@ export const dashboardRouter = router({
       const startDate = new Date(endDate);
       startDate.setDate(startDate.getDate() - input.history_days + 1);
 
-      const [acwrResult, wellnessHistory] = await Promise.all([
-        calculateACWR(ctx.db, {
-          tenant_id: ctx.tenantId,
-          user_id: ctx.userId,
-          date: input.date,
-        }),
+      const chronicStartDate = new Date(endDate);
+      chronicStartDate.setDate(chronicStartDate.getDate() - 27);
+
+      const [wellnessHistory, allSessions] = await Promise.all([
         getDailyWellnessByDateRange(ctx.db, {
           tenant_id: ctx.tenantId,
           user_id: ctx.userId,
           start_date: startDate.toISOString().split('T')[0],
           end_date: input.date,
         }),
+        getWorkoutSessionsByDateRange(ctx.db, {
+          tenant_id: ctx.tenantId,
+          user_id: ctx.userId,
+          start_date: chronicStartDate.toISOString().split('T')[0],
+          end_date: input.date,
+        }),
       ]);
-
-      const select = input.select ?? ['acwr', 'wellnessHistory'];
-
-      const { resolve } = createResolver({
-        ctx,
-        select,
-        view: ReadinessView,
-      });
-
-      const acwrData: ACWRData = {
-        acute_load: acwrResult.acute_load,
-        chronic_load: acwrResult.chronic_load,
-        ratio: acwrResult.ratio,
-        isDanger: acwrResult.isDanger,
-      };
 
       const wellnessData: WellnessMetric[] = wellnessHistory.map(w => ({
         id: w.id,
@@ -56,9 +46,34 @@ export const dashboardRouter = router({
         hrv_ratio: w.hrv_ratio,
       }));
 
-      return resolve({
-        acwr: acwrData,
-        wellnessHistory: wellnessData,
+      const acwrHistory: ACWRHistoryPoint[] = wellnessHistory.map(w => {
+        const acute_load = calculateAcuteLoad(allSessions, w.date);
+        const chronic_load = calculateChronicLoad(allSessions, w.date);
+        const ratio = chronic_load === 0 ? 0 : acute_load / chronic_load;
+        return {
+          date: w.date,
+          acute_load,
+          chronic_load,
+          ratio,
+          isDanger: ratio > 1.5,
+        };
       });
+
+      const currentAcwr = acwrHistory.length > 0 
+        ? acwrHistory[acwrHistory.length - 1]
+        : { acute_load: 0, chronic_load: 0, ratio: 0, isDanger: false };
+
+      const acwrData: ACWRData = {
+        acute_load: currentAcwr.acute_load,
+        chronic_load: currentAcwr.chronic_load,
+        ratio: currentAcwr.ratio,
+        isDanger: currentAcwr.isDanger,
+      };
+
+      return {
+        acwr: acwrData,
+        acwrHistory,
+        wellnessHistory: wellnessData,
+      };
     }),
 });
