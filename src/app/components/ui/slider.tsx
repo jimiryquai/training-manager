@@ -3,14 +3,19 @@ import { Slider as SliderPrimitive } from "radix-ui"
 
 import { cn } from "@/app/lib/utils"
 
+interface SliderProps extends React.ComponentProps<typeof SliderPrimitive.Root> {
+  rangeClassName?: string;
+}
+
 function Slider({
   className,
+  rangeClassName,
   defaultValue,
   value,
   min = 0,
   max = 100,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: SliderProps) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -40,7 +45,10 @@ function Slider({
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
-          className="bg-primary absolute select-none data-horizontal:h-full data-vertical:w-full"
+          className={cn(
+            "bg-primary absolute select-none data-horizontal:h-full data-vertical:w-full",
+            rangeClassName
+          )}
         />
       </SliderPrimitive.Track>
       {Array.from({ length: _values.length }, (_, index) => (

@@ -16,27 +16,16 @@ import {
 } from '@/app/components/ui/form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { logWellnessSchema, type LogWellnessInput } from './schemas';
+import {
+  wellnessMetrics,
+  getSliderColor,
+  getSliderTextColor,
+  getMetricLabel,
+} from '@/app/shared/wellnessConfig';
 
 interface LogWellnessFormProps {
   onSubmit: (data: LogWellnessInput) => Promise<void>;
   defaultDate?: string;
-}
-
-const subjectiveMetrics = [
-  { name: 'sleep_score' as const, label: '😴 Sleep Quality' },
-  { name: 'fatigue_score' as const, label: '🔋 Fatigue Level' },
-  { name: 'muscle_soreness_score' as const, label: '💪 Muscle Soreness' },
-  { name: 'stress_score' as const, label: '😰 Stress Level' },
-  { name: 'mood_score' as const, label: '😊 Mood' },
-  { name: 'diet_score' as const, label: '🍎 Diet Quality' },
-];
-
-function getSliderColor(value: number): string {
-  if (value <= 1) return 'text-red-500';
-  if (value <= 2) return 'text-orange-500';
-  if (value <= 3) return 'text-yellow-500';
-  if (value <= 4) return 'text-lime-500';
-  return 'text-green-500';
 }
 
 export function LogWellnessForm({ onSubmit, defaultDate }: LogWellnessFormProps) {
@@ -121,31 +110,35 @@ export function LogWellnessForm({ onSubmit, defaultDate }: LogWellnessFormProps)
 
             <div className="space-y-4 pt-4 border-t">
               <h3 className="font-medium">Subjective Metrics</h3>
-              {subjectiveMetrics.map(({ name, label }) => (
+              {wellnessMetrics.map((metric) => (
                 <FormField
-                  key={name}
+                  key={metric.name}
                   control={form.control}
-                  name={name}
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex justify-between items-center mb-2">
-                        <FormLabel className="!mt-0">{label}</FormLabel>
-                        <span className={`font-bold ${getSliderColor(field.value ?? 3)}`}>
-                          {field.value ?? 3}
-                        </span>
-                      </div>
-                      <FormControl>
-                        <Slider
-                          min={1}
-                          max={5}
-                          step={1}
-                          value={[field.value ?? 3]}
-                          onValueChange={(vals) => field.onChange(vals[0])}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  name={metric.name}
+                  render={({ field }) => {
+                    const value = field.value ?? 3;
+                    return (
+                      <FormItem>
+                        <div className="flex justify-between items-center mb-2">
+                          <FormLabel className="!mt-0">{metric.label}</FormLabel>
+                          <span className={`font-bold ${getSliderTextColor(value, metric.polarity)}`}>
+                            {value}/5 - {getMetricLabel(metric.name, value)}
+                          </span>
+                        </div>
+                        <FormControl>
+                          <Slider
+                            min={1}
+                            max={5}
+                            step={1}
+                            value={[value]}
+                            onValueChange={(vals) => field.onChange(vals[0])}
+                            rangeClassName={getSliderColor(value, metric.polarity)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
               ))}
             </div>
