@@ -27,7 +27,7 @@ const mockBenchmark = {
   id: 'benchmark-1',
   tenant_id: 'tenant-1',
   user_id: 'user-1',
-  master_exercise_name: 'Back Squat',
+  master_exercise_id: 'master-squat-id',
   one_rep_max_weight: 100,
 };
 
@@ -196,12 +196,12 @@ describe('libraryRouter', () => {
 
       const caller = createCaller(ctx);
       const result = await caller.saveUserBenchmark({
-        master_exercise_name: 'Back Squat',
+        master_exercise_id: 'master-squat-id',
         one_rep_max_weight: 100,
       });
 
       expect(result).toBeDefined();
-      expect(result!.master_exercise_name).toBe('Back Squat');
+      expect(result!.master_exercise_id).toBe('master-squat-id');
       expect(result!.one_rep_max_weight).toBe(100);
     });
 
@@ -240,7 +240,7 @@ describe('libraryRouter', () => {
 
       const caller = createCaller(ctx);
       const result = await caller.saveUserBenchmark({
-        master_exercise_name: 'Back Squat',
+        master_exercise_id: 'master-squat-id',
         one_rep_max_weight: 100,
       });
 

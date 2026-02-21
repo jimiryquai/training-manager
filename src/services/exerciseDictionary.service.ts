@@ -114,7 +114,7 @@ export async function getExerciseWithMaster(
 export interface CreateUserBenchmarkInput {
   tenant_id: string;
   user_id: string;
-  master_exercise_name: string;
+  master_exercise_id: string;
   one_rep_max_weight: number;
 }
 
@@ -122,7 +122,7 @@ export interface UserBenchmarkRecord {
   id: string;
   tenant_id: string;
   user_id: string;
-  master_exercise_name: string;
+  master_exercise_id: string;
   one_rep_max_weight: number;
 }
 
@@ -136,7 +136,7 @@ export async function upsertUserBenchmark(
     .selectFrom('user_benchmarks')
     .where('tenant_id', '=', input.tenant_id)
     .where('user_id', '=', input.user_id)
-    .where('master_exercise_name', '=', input.master_exercise_name)
+    .where('master_exercise_id', '=', input.master_exercise_id)
     .selectAll()
     .executeTakeFirst();
 
@@ -161,7 +161,7 @@ export async function upsertUserBenchmark(
       id,
       tenant_id: input.tenant_id,
       user_id: input.user_id,
-      master_exercise_name: input.master_exercise_name,
+      master_exercise_id: input.master_exercise_id,
       one_rep_max_weight: input.one_rep_max_weight,
       created_at: now,
       updated_at: now,

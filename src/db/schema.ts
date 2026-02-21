@@ -58,7 +58,7 @@ export interface UserBenchmarksTable {
   id: Generated<string>;
   tenant_id: string;
   user_id: string;
-  master_exercise_name: string;
+  master_exercise_id: string;
   one_rep_max_weight: number;
   created_at: Generated<string>;
   updated_at: Generated<string>;

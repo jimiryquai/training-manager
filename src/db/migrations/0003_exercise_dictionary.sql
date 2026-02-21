@@ -21,12 +21,14 @@ CREATE TABLE IF NOT EXISTS user_benchmarks (
   id TEXT PRIMARY KEY,
   tenant_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
-  master_exercise_name TEXT NOT NULL,
+  master_exercise_id TEXT NOT NULL,
   one_rep_max_weight REAL NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (master_exercise_id) REFERENCES exercise_dictionary(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_user_benchmarks_tenant ON user_benchmarks(tenant_id);
 CREATE INDEX idx_user_benchmarks_user ON user_benchmarks(user_id);
-CREATE UNIQUE INDEX idx_user_benchmarks_user_exercise ON user_benchmarks(tenant_id, user_id, master_exercise_name);
+CREATE INDEX idx_user_benchmarks_master ON user_benchmarks(master_exercise_id);
+CREATE UNIQUE INDEX idx_user_benchmarks_user_exercise ON user_benchmarks(tenant_id, user_id, master_exercise_id);

@@ -28,7 +28,7 @@ const getExerciseWithMasterSchema = z.object({
 });
 
 const saveUserBenchmarkSchema = z.object({
-  master_exercise_name: z.string().min(1),
+  master_exercise_id: z.string().min(1),
   one_rep_max_weight: z.number().positive(),
 });
 
@@ -70,7 +70,7 @@ export const libraryRouter = router({
       return upsertUserBenchmark(ctx.db, {
         tenant_id: ctx.tenantId,
         user_id: ctx.userId,
-        master_exercise_name: input.master_exercise_name,
+        master_exercise_id: input.master_exercise_id,
         one_rep_max_weight: input.one_rep_max_weight,
       });
     }),
