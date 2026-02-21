@@ -1,59 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import { LogWellnessForm } from '@/app/components/forms/LogWellnessForm';
-import { LogWorkoutForm } from '@/app/components/forms/LogWorkoutForm';
 import { ACWRChart, FatigueChart } from '@/app/components/charts';
 import { useReadinessData } from '@/app/hooks/useReadinessData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
-import { toast } from '@/app/hooks/use-toast';
-import type { LogWellnessInput } from '@/app/components/forms/schemas';
-import type { LogWorkoutInput } from '@/app/components/forms/schemas';
-
-async function submitWellness(data: LogWellnessInput) {
-  const response = await fetch('/trpc/wellness.logDailyMetrics', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error('Failed to save wellness data');
-  return response.json();
-}
-
-async function submitWorkout(data: LogWorkoutInput) {
-  const response = await fetch('/trpc/training.logSession', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
-  });
-  if (!response.ok) throw new Error('Failed to save workout data');
-  return response.json();
-}
 
 export function Dashboard() {
   const today = new Date().toISOString().split('T')[0];
   const [refreshKey, setRefreshKey] = useState(0);
   const { data, loading, error } = useReadinessData(today);
-
-  const handleWellnessSubmit = async (formData: LogWellnessInput) => {
-    try {
-      await submitWellness(formData);
-      toast({ title: 'Success', description: 'Wellness data saved' });
-      setRefreshKey((k) => k + 1);
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save wellness data', variant: 'destructive' });
-    }
-  };
-
-  const handleWorkoutSubmit = async (formData: LogWorkoutInput) => {
-    try {
-      await submitWorkout(formData);
-      toast({ title: 'Success', description: 'Workout data saved' });
-      setRefreshKey((k) => k + 1);
-    } catch {
-      toast({ title: 'Error', description: 'Failed to save workout data', variant: 'destructive' });
-    }
-  };
 
   if (loading) {
     return (
@@ -91,11 +46,6 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ACWRChart data={chartData} key={`acwr-${refreshKey}`} />
         <FatigueChart data={chartData} key={`fatigue-${refreshKey}`} />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <LogWellnessForm onSubmit={handleWellnessSubmit} defaultDate={today} />
-        <LogWorkoutForm onSubmit={handleWorkoutSubmit} defaultDate={today} />
       </div>
 
       {data?.acwr && (

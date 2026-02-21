@@ -8,6 +8,7 @@ import { D1Dialect } from "kysely-d1";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
+import { LogData } from "@/app/pages/LogData";
 import { AppLayout } from "@/app/layouts/AppLayout";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";
@@ -72,7 +73,8 @@ export default defineApp([
   }),
   render(Document, [
     layout(({ children, requestInfo }) => <AppLayout currentPath={requestInfo?.path || '/'}>{children}</AppLayout>, [
-      route("/", Home)
+      route("/", Home),
+      route("/log", LogData)
     ])
   ]),
 ]);
