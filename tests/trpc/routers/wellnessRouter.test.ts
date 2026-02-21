@@ -3,6 +3,11 @@ import { wellnessRouter } from '../../../src/trpc/routers/wellnessRouter';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/schema';
 
+const mockRecords = [
+  { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-19', rhr: 55, hrv_rmssd: 45, created_at: '2026-02-19T00:00:00.000Z', updated_at: '2026-02-19T00:00:00.000Z' },
+  { id: '2', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-20', rhr: 54, hrv_rmssd: 47, created_at: '2026-02-20T00:00:00.000Z', updated_at: '2026-02-20T00:00:00.000Z' },
+];
+
 const mockDb = {
   insertInto: vi.fn(() => ({
     values: vi.fn(() => ({
@@ -30,6 +35,12 @@ const mockDb = {
               date: '2026-02-21',
               rhr: 55,
               hrv_rmssd: 45,
+            })),
+            execute: vi.fn(async () => mockRecords),
+          })),
+          where: vi.fn(() => ({
+            selectAll: vi.fn(() => ({
+              execute: vi.fn(async () => mockRecords),
             })),
           })),
         })),
@@ -93,6 +104,27 @@ describe('wellnessRouter', () => {
 
       expect(result).toBeDefined();
       expect(result?.rhr).toBe(55);
+    });
+  });
+
+  describe('getMetricsByDateRange', () => {
+    it('should fetch wellness records within date range for authenticated user', async () => {
+      const ctx = {
+        session: { userId: 'user-1', tenantId: 'tenant-1' },
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        db: mockDb,
+      };
+
+      const caller = createCaller(ctx);
+      const result = await caller.getMetricsByDateRange({
+        start_date: '2026-02-19',
+        end_date: '2026-02-20',
+      });
+
+      expect(result).toBeDefined();
+      expect(result).toHaveLength(2);
+      expect(result[0].rhr).toBe(55);
     });
   });
 });

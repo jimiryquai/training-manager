@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { createDailyWellness, calculateHrvRatio, getDailyWellnessByDate } from '../../src/services/dailyWellness.service';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createDailyWellness, calculateHrvRatio, getDailyWellnessByDate, getDailyWellnessByDateRange } from '../../src/services/dailyWellness.service';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/schema';
 
@@ -100,6 +100,42 @@ describe('DailyWellness Service', () => {
         date: '2026-02-21'
       });
       expect(result).toBeUndefined();
+    });
+  });
+
+  describe('getDailyWellnessByDateRange', () => {
+    it('should return wellness records within date range', async () => {
+      const mockRecords = [
+        { id: '1', tenant_id: 't1', user_id: 'u1', date: '2026-02-19', rhr: 55, hrv_rmssd: 45, created_at: '2026-02-19T00:00:00.000Z', updated_at: '2026-02-19T00:00:00.000Z' },
+        { id: '2', tenant_id: 't1', user_id: 'u1', date: '2026-02-20', rhr: 54, hrv_rmssd: 47, created_at: '2026-02-20T00:00:00.000Z', updated_at: '2026-02-20T00:00:00.000Z' },
+        { id: '3', tenant_id: 't1', user_id: 'u1', date: '2026-02-21', rhr: 53, hrv_rmssd: 50, created_at: '2026-02-21T00:00:00.000Z', updated_at: '2026-02-21T00:00:00.000Z' },
+      ];
+
+      const mockDbRange = {
+        selectFrom: vi.fn(() => ({
+          where: vi.fn(() => ({
+            where: vi.fn(() => ({
+              where: vi.fn(() => ({
+                where: vi.fn(() => ({
+                  selectAll: vi.fn(() => ({
+                    execute: vi.fn(async () => mockRecords),
+                  })),
+                })),
+              })),
+            })),
+          })),
+        })),
+      } as unknown as Kysely<Database>;
+
+      const result = await getDailyWellnessByDateRange(mockDbRange, {
+        tenant_id: 't1',
+        user_id: 'u1',
+        start_date: '2026-02-19',
+        end_date: '2026-02-21',
+      });
+
+      expect(result).toHaveLength(3);
+      expect(result[0].hrv_ratio).toBeCloseTo(45 / 55);
     });
   });
 });

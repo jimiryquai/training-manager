@@ -71,3 +71,29 @@ export async function getDailyWellnessByDate(
     hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
   };
 }
+
+export interface GetDailyWellnessRangeInput {
+  tenant_id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+}
+
+export async function getDailyWellnessByDateRange(
+  db: Kysely<Database>,
+  input: GetDailyWellnessRangeInput
+): Promise<DailyWellnessRecord[]> {
+  const results = await db
+    .selectFrom('daily_wellness')
+    .where('tenant_id', '=', input.tenant_id)
+    .where('user_id', '=', input.user_id)
+    .where('date', '>=', input.start_date)
+    .where('date', '<=', input.end_date)
+    .selectAll()
+    .execute();
+
+  return results.map(r => ({
+    ...r,
+    hrv_ratio: calculateHrvRatio(r.hrv_rmssd, r.rhr)
+  }));
+}
