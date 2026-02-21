@@ -29,7 +29,7 @@ export interface WorkoutSessionTable {
   modality: Modality;
   duration_minutes: number;
   srpe: number;
-  training_load: Generated<number>;
+  training_load: number;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
