@@ -7,7 +7,7 @@ const mockDb = {
   insertInto: () => ({
     values: () => ({
       returningAll: () => ({
-        executeTakeFirst: async () => ({ id: 'test-id', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', rhr: 55, hrv_rmssd: 45, created_at: '2026-02-21T00:00:00.000Z', updated_at: '2026-02-21T00:00:00.000Z' })
+        executeTakeFirst: async () => ({ id: 'test-id', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', rhr: 55, hrv_rmssd: 45, hrv_ratio: 0.818, created_at: '2026-02-21T00:00:00.000Z', updated_at: '2026-02-21T00:00:00.000Z' })
       })
     })
   }),
@@ -23,6 +23,7 @@ const mockDb = {
               date: '2026-02-21',
               rhr: 55,
               hrv_rmssd: 45,
+              hrv_ratio: 0.818,
               created_at: '2026-02-21T00:00:00.000Z',
               updated_at: '2026-02-21T00:00:00.000Z'
             })
@@ -62,6 +63,7 @@ describe('DailyWellness Service', () => {
       expect(result).toBeDefined();
       expect(result?.rhr).toBe(55);
       expect(result?.hrv_rmssd).toBe(45);
+      expect(result?.hrv_ratio).toBeCloseTo(0.818, 2);
     });
   });
 
@@ -74,6 +76,7 @@ describe('DailyWellness Service', () => {
       });
       expect(result).toBeDefined();
       expect(result?.rhr).toBe(55);
+      expect(result?.hrv_ratio).toBeCloseTo(0.818, 2);
     });
   });
 });
