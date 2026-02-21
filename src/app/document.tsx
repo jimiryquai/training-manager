@@ -1,3 +1,5 @@
+import { Toaster } from '@/app/hooks/use-toast';
+
 export const Document: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
@@ -11,6 +13,7 @@ export const Document: React.FC<{ children: React.ReactNode }> = ({
     </head>
     <body>
       {children}
+      <Toaster />
       <script>import("/src/client.tsx")</script>
     </body>
   </html>
