@@ -8,7 +8,7 @@ import { D1Dialect } from "kysely-d1";
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
-import { LogData } from "@/app/pages/LogData";
+import { LogData } from "@/app/pages/logData";
 import { AppLayout } from "@/app/layouts/AppLayout";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";

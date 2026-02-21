@@ -1,13 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import { ACWRChart, FatigueChart } from '@/app/components/charts';
 import { useReadinessData } from '@/app/hooks/useReadinessData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 
 export function Dashboard() {
   const today = new Date().toISOString().split('T')[0];
-  const [refreshKey, setRefreshKey] = useState(0);
   const { data, loading, error } = useReadinessData(today);
 
   if (loading) {
@@ -44,8 +42,8 @@ export function Dashboard() {
       <h1 className="text-3xl font-bold">Readiness Dashboard</h1>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ACWRChart data={chartData} key={`acwr-${refreshKey}`} />
-        <FatigueChart data={chartData} key={`fatigue-${refreshKey}`} />
+        <ACWRChart data={chartData} />
+        <FatigueChart data={chartData} />
       </div>
 
       {data?.acwr && (

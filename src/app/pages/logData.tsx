@@ -11,7 +11,7 @@ async function submitWellness(data: LogWellnessInput) {
   const response = await fetch('/trpc/wellness.logDailyMetrics', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ json: data }),
   });
   if (!response.ok) throw new Error('Failed to save wellness data');
   return response.json();
@@ -21,7 +21,7 @@ async function submitWorkout(data: LogWorkoutInput) {
   const response = await fetch('/trpc/training.logSession', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data),
+    body: JSON.stringify({ json: data }),
   });
   if (!response.ok) throw new Error('Failed to save workout data');
   return response.json();
