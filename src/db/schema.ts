@@ -17,6 +17,12 @@ export interface DailyWellnessTable {
   date: string;
   rhr: number;
   hrv_rmssd: number;
+  sleep_score: number | null;
+  fatigue_score: number | null;
+  muscle_soreness_score: number | null;
+  stress_score: number | null;
+  mood_score: number | null;
+  diet_score: number | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }

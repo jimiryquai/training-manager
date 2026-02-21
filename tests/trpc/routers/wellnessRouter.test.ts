@@ -4,8 +4,8 @@ import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/schema';
 
 const mockRecords = [
-  { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-19', rhr: 55, hrv_rmssd: 45, created_at: '2026-02-19T00:00:00.000Z', updated_at: '2026-02-19T00:00:00.000Z' },
-  { id: '2', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-20', rhr: 54, hrv_rmssd: 47, created_at: '2026-02-20T00:00:00.000Z', updated_at: '2026-02-20T00:00:00.000Z' },
+  { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-19', rhr: 55, hrv_rmssd: 45, sleep_score: 4, fatigue_score: 2, muscle_soreness_score: 3, stress_score: 3, mood_score: 4, diet_score: 4, created_at: '2026-02-19T00:00:00.000Z', updated_at: '2026-02-19T00:00:00.000Z' },
+  { id: '2', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-20', rhr: 54, hrv_rmssd: 47, sleep_score: 5, fatigue_score: 1, muscle_soreness_score: 2, stress_score: 2, mood_score: 5, diet_score: 5, created_at: '2026-02-20T00:00:00.000Z', updated_at: '2026-02-20T00:00:00.000Z' },
 ];
 
 const mockDb = {
@@ -19,6 +19,34 @@ const mockDb = {
           date: '2026-02-21',
           rhr: 55,
           hrv_rmssd: 45,
+          sleep_score: null,
+          fatigue_score: null,
+          muscle_soreness_score: null,
+          stress_score: null,
+          mood_score: null,
+          diet_score: null,
+        })),
+      })),
+    })),
+  })),
+  updateTable: vi.fn(() => ({
+    set: vi.fn(() => ({
+      where: vi.fn(() => ({
+        returningAll: vi.fn(() => ({
+          executeTakeFirst: vi.fn(async () => ({
+            id: 'test-id',
+            tenant_id: 'tenant-1',
+            user_id: 'user-1',
+            date: '2026-02-21',
+            rhr: 55,
+            hrv_rmssd: 45,
+            sleep_score: null,
+            fatigue_score: null,
+            muscle_soreness_score: null,
+            stress_score: null,
+            mood_score: null,
+            diet_score: null,
+          })),
         })),
       })),
     })),
@@ -35,6 +63,12 @@ const mockDb = {
               date: '2026-02-21',
               rhr: 55,
               hrv_rmssd: 45,
+              sleep_score: null,
+              fatigue_score: null,
+              muscle_soreness_score: null,
+              stress_score: null,
+              mood_score: null,
+              diet_score: null,
             })),
             execute: vi.fn(async () => mockRecords),
           })),
@@ -66,6 +100,31 @@ describe('wellnessRouter', () => {
         date: '2026-02-21',
         rhr: 55,
         hrv_rmssd: 45,
+      });
+
+      expect(result).toBeDefined();
+      expect(result!.rhr).toBe(55);
+    });
+
+    it('should create a wellness record with subjective scores', async () => {
+      const ctx = {
+        session: { userId: 'user-1', tenantId: 'tenant-1' },
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        db: mockDb,
+      };
+
+      const caller = createCaller(ctx);
+      const result = await caller.logDailyMetrics({
+        date: '2026-02-21',
+        rhr: 55,
+        hrv_rmssd: 45,
+        sleep_score: 4,
+        fatigue_score: 2,
+        muscle_soreness_score: 3,
+        stress_score: 3,
+        mood_score: 4,
+        diet_score: 4,
       });
 
       expect(result).toBeDefined();

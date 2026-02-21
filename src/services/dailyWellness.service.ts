@@ -7,6 +7,12 @@ export interface CreateDailyWellnessInput {
   date: string;
   rhr: number;
   hrv_rmssd: number;
+  sleep_score?: number | null;
+  fatigue_score?: number | null;
+  muscle_soreness_score?: number | null;
+  stress_score?: number | null;
+  mood_score?: number | null;
+  diet_score?: number | null;
 }
 
 export type DailyWellnessRecord = Omit<DailyWellnessTable, 'created_at' | 'updated_at' | 'id'> & {
@@ -61,6 +67,12 @@ export async function upsertDailyWellness(
       .set({
         rhr: input.rhr,
         hrv_rmssd: input.hrv_rmssd,
+        sleep_score: input.sleep_score ?? null,
+        fatigue_score: input.fatigue_score ?? null,
+        muscle_soreness_score: input.muscle_soreness_score ?? null,
+        stress_score: input.stress_score ?? null,
+        mood_score: input.mood_score ?? null,
+        diet_score: input.diet_score ?? null,
         updated_at: now
       })
       .where('id', '=', existing.id)

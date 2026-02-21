@@ -7,6 +7,12 @@ const logDailyMetricsSchema = z.object({
   date: z.string(),
   rhr: z.number().positive(),
   hrv_rmssd: z.number().positive(),
+  sleep_score: z.number().int().min(1).max(5).optional(),
+  fatigue_score: z.number().int().min(1).max(5).optional(),
+  muscle_soreness_score: z.number().int().min(1).max(5).optional(),
+  stress_score: z.number().int().min(1).max(5).optional(),
+  mood_score: z.number().int().min(1).max(5).optional(),
+  diet_score: z.number().int().min(1).max(5).optional(),
 });
 
 const getMetricsByDateSchema = z.object({
@@ -28,6 +34,12 @@ export const wellnessRouter = router({
         date: input.date,
         rhr: input.rhr,
         hrv_rmssd: input.hrv_rmssd,
+        sleep_score: input.sleep_score,
+        fatigue_score: input.fatigue_score,
+        muscle_soreness_score: input.muscle_soreness_score,
+        stress_score: input.stress_score,
+        mood_score: input.mood_score,
+        diet_score: input.diet_score,
       });
     }),
 
