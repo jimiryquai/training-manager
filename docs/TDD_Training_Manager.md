@@ -1,6 +1,6 @@
 ### Technical Design Document (TDD): Backend Architecture
 
-**Stack:** RedwoodSDK, Cloudflare D1 (SQLite), tRPC, Kysely query builder, built-in Redwood dbAuth.
+**Stack:** RedwoodSDK, Cloudflare D1 (SQLite), tRPC, Kysely query builder, Durable Objects for sessions.
 
 **Database Schema Design (Hybrid Model):**
 

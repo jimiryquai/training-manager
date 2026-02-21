@@ -1030,10 +1030,45 @@ git commit -m "feat(services): add barrel export for all services"
 
 ## Verification Checklist
 
-- [ ] All migrations applied successfully to local D1
-- [ ] Kysely types generated
-- [ ] All services have corresponding tests
-- [ ] Training load calculation: `duration_minutes * sRPE`
-- [ ] ACWR: acute (7-day sum) / chronic (28-day avg)
-- [ ] Danger flag: `ratio > 1.5`
-- [ ] All tables include `tenant_id` for multi-tenancy
+- [x] All migrations applied successfully to local D1
+- [x] Kysely types generated (schema.ts)
+- [x] All services have corresponding tests (25 tests, 4 files)
+- [x] Training load calculation: `duration_minutes * sRPE`
+- [x] ACWR: acute (7-day sum) / chronic (28-day avg)
+- [x] Danger flag: `ratio > 1.5`
+- [x] All tables include `tenant_id` for multi-tenancy
+
+---
+
+## Implementation Notes (Deviations from Plan)
+
+### Authentication (Task 0)
+
+**Plan said:** "Select 'dbAuth' for authentication"
+
+**Reality:** RedwoodSDK does not have "dbAuth". The CLI (`create-rwsdk@latest`) doesn't have interactive prompts for auth selection.
+
+**Solution:** Authentication will use RedwoodSDK's `defineDurableSession` with Durable Objects. This is documented in the RedwoodSDK docs under "Authentication" section. A `UserSession` Durable Object will manage session state with `getSession()`, `saveSession()`, and `revokeSession()` methods.
+
+### UUID Generation
+
+**Plan said:** `import { randomUUID } from 'crypto'`
+
+**Reality:** Node's `randomUUID` doesn't work in Cloudflare Workers runtime.
+
+**Solution:** Use `crypto.randomUUID()` (Web Crypto API) which is available in the Workers runtime.
+
+### training_load Type
+
+**Plan said:** `training_load: Generated<number>`
+
+**Reality:** `training_load` is application-computed (duration * sRPE), not database-generated.
+
+**Solution:** Changed to `training_load: number` in the TypeScript schema.
+
+### Status
+
+**Completed:** 2026-02-21
+**Tests:** 25 passing
+**Commits:** 9
+**Repository:** https://github.com/jimiryquai/training-manager
