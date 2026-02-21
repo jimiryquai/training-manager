@@ -1,12 +1,13 @@
 import { ReactNode } from 'react';
 import { LayoutDashboard, ClipboardList } from 'lucide-react';
+import { link } from '@/app/shared/links';
 
 interface AppLayoutProps {
   children: ReactNode;
   currentPath: string;
 }
 
-const tabs = [
+const tabs: Array<{ path: '/' | '/log'; label: string; icon: typeof LayoutDashboard }> = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
   { path: '/log', label: 'Log Data', icon: ClipboardList },
 ];
@@ -24,7 +25,7 @@ export function AppLayout({ children, currentPath }: AppLayoutProps) {
             return (
               <a
                 key={path}
-                href={path}
+                href={link(path)}
                 className={`flex flex-col items-center justify-center flex-1 h-full transition-colors ${
                   isActive
                     ? 'text-primary'
