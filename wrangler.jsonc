@@ -18,5 +18,16 @@
       "database_id": "local",
       "migrations_dir": "./src/db/migrations"
     }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "USER_SESSION_DO", "class_name": "UserSession" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["UserSession"]
+    }
   ]
 }
