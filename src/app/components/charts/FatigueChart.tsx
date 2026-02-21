@@ -22,11 +22,11 @@ interface FatigueChartProps {
 const chartConfig = {
   rhr: {
     label: 'RHR (bpm)',
-    color: 'hsl(var(--chart-1))',
+    color: 'var(--chart-1)',
   },
   hrv_rmssd: {
     label: 'HRV (ms)',
-    color: 'hsl(var(--chart-2))',
+    color: 'var(--chart-2)',
   },
 } satisfies ChartConfig;
 

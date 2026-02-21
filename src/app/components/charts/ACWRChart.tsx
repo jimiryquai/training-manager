@@ -21,11 +21,11 @@ interface ACWRChartProps {
 const chartConfig = {
   ratio: {
     label: 'ACWR',
-    color: 'hsl(var(--chart-1))',
+    color: 'var(--chart-1)',
   },
   danger: {
     label: 'Danger Zone',
-    color: 'hsl(var(--destructive))',
+    color: 'var(--destructive)',
   },
 } satisfies ChartConfig;
 
@@ -53,9 +53,9 @@ export function ACWRChart({ data }: ACWRChartProps) {
             <ChartTooltip content={<ChartTooltipContent />} />
             <ReferenceLine
               y={1.5}
-              stroke="hsl(var(--destructive))"
+              stroke="var(--destructive)"
               strokeDasharray="5 5"
-              label={{ value: 'Danger', position: 'right', fill: 'hsl(var(--destructive))' }}
+              label={{ value: 'Danger', position: 'right', fill: 'var(--destructive)' }}
             />
             <Line
               type="monotone"
