@@ -78,5 +78,28 @@ describe('DailyWellness Service', () => {
       expect(result?.rhr).toBe(55);
       expect(result?.hrv_ratio).toBeCloseTo(0.818, 2);
     });
+
+    it('should return undefined when record not found', async () => {
+      const mockDbNotFound = {
+        selectFrom: () => ({
+          where: () => ({
+            where: () => ({
+              where: () => ({
+                selectAll: () => ({
+                  executeTakeFirst: async () => undefined
+                })
+              })
+            })
+          })
+        })
+      } as unknown as Kysely<Database>;
+
+      const result = await getDailyWellnessByDate(mockDbNotFound, {
+        tenant_id: 'tenant-1',
+        user_id: 'user-1',
+        date: '2026-02-21'
+      });
+      expect(result).toBeUndefined();
+    });
   });
 });
