@@ -110,3 +110,64 @@ export async function getExerciseWithMaster(
     master_exercise: masterExercise ?? null,
   };
 }
+
+export interface CreateUserBenchmarkInput {
+  tenant_id: string;
+  user_id: string;
+  master_exercise_name: string;
+  one_rep_max_weight: number;
+}
+
+export interface UserBenchmarkRecord {
+  id: string;
+  tenant_id: string;
+  user_id: string;
+  master_exercise_name: string;
+  one_rep_max_weight: number;
+}
+
+export async function upsertUserBenchmark(
+  db: Kysely<Database>,
+  input: CreateUserBenchmarkInput
+): Promise<UserBenchmarkRecord | undefined> {
+  const now = new Date().toISOString();
+
+  const existing = await db
+    .selectFrom('user_benchmarks')
+    .where('tenant_id', '=', input.tenant_id)
+    .where('user_id', '=', input.user_id)
+    .where('master_exercise_name', '=', input.master_exercise_name)
+    .selectAll()
+    .executeTakeFirst();
+
+  if (existing) {
+    const result = await db
+      .updateTable('user_benchmarks')
+      .set({
+        one_rep_max_weight: input.one_rep_max_weight,
+        updated_at: now,
+      })
+      .where('id', '=', existing.id)
+      .returningAll()
+      .executeTakeFirst();
+
+    return result;
+  }
+
+  const id = crypto.randomUUID();
+  const result = await db
+    .insertInto('user_benchmarks')
+    .values({
+      id,
+      tenant_id: input.tenant_id,
+      user_id: input.user_id,
+      master_exercise_name: input.master_exercise_name,
+      one_rep_max_weight: input.one_rep_max_weight,
+      created_at: now,
+      updated_at: now,
+    })
+    .returningAll()
+    .executeTakeFirst();
+
+  return result;
+}
