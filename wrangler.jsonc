@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "training-manager",
+  "main": "src/worker.tsx",
+  "compatibility_date": "2025-08-21",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {},
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "training-manager-db",
+      "database_id": "local",
+      "migrations_dir": "./src/db/migrations"
+    }
+  ]
+}
