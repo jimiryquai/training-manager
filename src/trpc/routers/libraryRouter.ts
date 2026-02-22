@@ -86,4 +86,15 @@ export const libraryRouter = router({
         one_rep_max_weight: input.one_rep_max_weight,
       });
     }),
+
+  getExercises: protectedProcedure
+    .query(async ({ ctx }) => {
+      return ctx.db
+        .selectFrom('exercise_dictionary')
+        .where('tenant_id', '=', ctx.tenantId)
+        .selectAll()
+        .orderBy('movement_category')
+        .orderBy('progression_level')
+        .execute();
+    }),
 });

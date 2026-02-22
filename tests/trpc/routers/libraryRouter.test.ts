@@ -274,4 +274,104 @@ describe('libraryRouter', () => {
       expect(estimatedGobletMax).toBe(70);
     });
   });
+
+  describe('Hybrid benchmarks (weighted + isometric)', () => {
+    it('should save isometric benchmark with seconds unit', async () => {
+      const mockBenchmark = {
+        id: 'benchmark-isometric-1',
+        tenant_id: 'tenant-1',
+        user_id: 'user-1',
+        benchmark_name: 'Planche',
+        benchmark_value: 15,
+        benchmark_unit: 'seconds' as const,
+        master_exercise_id: null,
+        one_rep_max_weight: null,
+      };
+
+      const mockDb = {
+        selectFrom: vi.fn(() => ({
+          where: vi.fn(() => ({
+            where: vi.fn(() => ({
+              where: vi.fn(() => ({
+                selectAll: vi.fn(() => ({
+                  executeTakeFirst: vi.fn(async () => undefined),
+                })),
+              })),
+            })),
+          })),
+        })),
+        insertInto: vi.fn(() => ({
+          values: vi.fn(() => ({
+            returningAll: vi.fn(() => ({
+              executeTakeFirst: vi.fn(async () => mockBenchmark),
+            })),
+          })),
+        })),
+      } as unknown as Kysely<Database>;
+
+      const ctx = {
+        session: { userId: 'user-1', tenantId: 'tenant-1' },
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        db: mockDb,
+      };
+
+      const caller = createCaller(ctx);
+      const result = await caller.saveUserBenchmark({
+        benchmark_name: 'Planche',
+        benchmark_value: 15,
+        benchmark_unit: 'seconds',
+      });
+
+      expect(result).toBeDefined();
+      expect(result!.benchmark_name).toBe('Planche');
+      expect(result!.benchmark_value).toBe(15);
+      expect(result!.benchmark_unit).toBe('seconds');
+    });
+
+    it('should create isometric exercise with correct exercise_type', async () => {
+      const mockIsometricExercise = {
+        id: 'tuck-planche-id',
+        tenant_id: 'tenant-1',
+        name: 'Tuck Planche',
+        movement_category: 'push' as const,
+        progression_level: 3,
+        exercise_type: 'isometric' as const,
+        benchmark_target: 'Planche',
+        conversion_factor: 1.0,
+        master_exercise_id: null,
+      };
+
+      const mockDb = {
+        insertInto: vi.fn(() => ({
+          values: vi.fn(() => ({
+            returningAll: vi.fn(() => ({
+              executeTakeFirst: vi.fn(async () => mockIsometricExercise),
+            })),
+          })),
+        })),
+      } as unknown as Kysely<Database>;
+
+      const ctx = {
+        session: { userId: 'user-1', tenantId: 'tenant-1' },
+        tenantId: 'tenant-1',
+        userId: 'user-1',
+        db: mockDb,
+      };
+
+      const caller = createCaller(ctx);
+      const result = await caller.addExercise({
+        name: 'Tuck Planche',
+        movement_category: 'push',
+        progression_level: 3,
+        exercise_type: 'isometric',
+        benchmark_target: 'Planche',
+        conversion_factor: 1.0,
+      });
+
+      expect(result).toBeDefined();
+      expect(result!.exercise_type).toBe('isometric');
+      expect(result!.benchmark_target).toBe('Planche');
+    });
+  });
 });

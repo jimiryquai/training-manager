@@ -188,3 +188,20 @@ export async function upsertUserBenchmark(
 
   return result;
 }
+
+export interface GetExerciseByBenchmarkTargetInput {
+  tenant_id: string;
+  benchmark_target: string;
+}
+
+export async function getExercisesByBenchmarkTarget(
+  db: Kysely<Database>,
+  input: GetExerciseByBenchmarkTargetInput
+): Promise<ExerciseDictionaryRecord[]> {
+  return db
+    .selectFrom('exercise_dictionary')
+    .where('tenant_id', '=', input.tenant_id)
+    .where('benchmark_target', '=', input.benchmark_target)
+    .selectAll()
+    .execute();
+}
