@@ -65,7 +65,7 @@ export interface UserBenchmarksTable {
   user_id: string;
   benchmark_name: string;
   benchmark_value: number | null;
-  benchmark_unit: string | null;
+  benchmark_unit: BenchmarkUnit | null;
   master_exercise_id: string | null;
   one_rep_max_weight: number | null;
   created_at: Generated<string>;

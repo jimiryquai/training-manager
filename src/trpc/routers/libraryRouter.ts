@@ -7,10 +7,11 @@ import {
   getExerciseWithMaster,
   upsertUserBenchmark,
 } from '../../services/exerciseDictionary.service';
-import type { MovementCategory, ExerciseType } from '../../db/schema';
+import type { MovementCategory, ExerciseType, BenchmarkUnit } from '../../db/schema';
 
 const movementCategorySchema = z.enum(['squat', 'hinge', 'push', 'pull', 'carry', 'core', 'cardio']);
 const exerciseTypeSchema = z.enum(['dynamic', 'isometric', 'eccentric']);
+const benchmarkUnitSchema = z.enum(['kg', 'lbs', 'seconds']);
 
 const addExerciseSchema = z.object({
   name: z.string().min(1),
@@ -33,7 +34,7 @@ const getExerciseWithMasterSchema = z.object({
 const saveUserBenchmarkSchema = z.object({
   benchmark_name: z.string().min(1),
   benchmark_value: z.number().optional(),
-  benchmark_unit: z.string().optional(),
+  benchmark_unit: benchmarkUnitSchema.optional(),
   master_exercise_id: z.string().optional(),
   one_rep_max_weight: z.number().positive().optional(),
 });
@@ -80,7 +81,7 @@ export const libraryRouter = router({
         user_id: ctx.userId,
         benchmark_name: input.benchmark_name,
         benchmark_value: input.benchmark_value,
-        benchmark_unit: input.benchmark_unit,
+        benchmark_unit: input.benchmark_unit as BenchmarkUnit | undefined,
         master_exercise_id: input.master_exercise_id,
         one_rep_max_weight: input.one_rep_max_weight,
       });

@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { Database, MovementCategory, ExerciseType } from '../db/schema';
+import type { Database, MovementCategory, ExerciseType, BenchmarkUnit } from '../db/schema';
 
 export interface CreateExerciseInput {
   tenant_id: string;
@@ -122,7 +122,7 @@ export interface CreateUserBenchmarkInput {
   user_id: string;
   benchmark_name: string;
   benchmark_value?: number | null;
-  benchmark_unit?: string | null;
+  benchmark_unit?: BenchmarkUnit | null;
   master_exercise_id?: string | null;
   one_rep_max_weight?: number | null;
 }
@@ -133,7 +133,7 @@ export interface UserBenchmarkRecord {
   user_id: string;
   benchmark_name: string;
   benchmark_value: number | null;
-  benchmark_unit: string | null;
+  benchmark_unit: BenchmarkUnit | null;
   master_exercise_id: string | null;
   one_rep_max_weight: number | null;
 }
