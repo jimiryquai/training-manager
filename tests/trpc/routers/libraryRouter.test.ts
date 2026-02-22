@@ -9,6 +9,8 @@ const mockMasterExercise = {
   name: 'Back Squat',
   movement_category: 'squat',
   progression_level: 5,
+  exercise_type: 'dynamic',
+  benchmark_target: null,
   master_exercise_id: null,
   conversion_factor: null,
 };
@@ -19,6 +21,8 @@ const mockChildExercise = {
   name: 'Goblet Squat',
   movement_category: 'squat',
   progression_level: 2,
+  exercise_type: 'dynamic',
+  benchmark_target: null,
   master_exercise_id: 'master-squat-id',
   conversion_factor: 0.7,
 };
@@ -27,6 +31,9 @@ const mockBenchmark = {
   id: 'benchmark-1',
   tenant_id: 'tenant-1',
   user_id: 'user-1',
+  benchmark_name: 'Back Squat',
+  benchmark_value: 100,
+  benchmark_unit: 'kg',
   master_exercise_id: 'master-squat-id',
   one_rep_max_weight: 100,
 };
@@ -58,6 +65,7 @@ describe('libraryRouter', () => {
         name: 'Back Squat',
         movement_category: 'squat',
         progression_level: 5,
+        exercise_type: 'dynamic',
       });
 
       expect(result).toBeDefined();
@@ -88,6 +96,7 @@ describe('libraryRouter', () => {
         name: 'Goblet Squat',
         movement_category: 'squat',
         progression_level: 2,
+        exercise_type: 'dynamic',
         master_exercise_id: 'master-squat-id',
         conversion_factor: 0.7,
       });
@@ -196,13 +205,14 @@ describe('libraryRouter', () => {
 
       const caller = createCaller(ctx);
       const result = await caller.saveUserBenchmark({
-        master_exercise_id: 'master-squat-id',
-        one_rep_max_weight: 100,
+        benchmark_name: 'Back Squat',
+        benchmark_value: 100,
+        benchmark_unit: 'kg',
       });
 
       expect(result).toBeDefined();
-      expect(result!.master_exercise_id).toBe('master-squat-id');
-      expect(result!.one_rep_max_weight).toBe(100);
+      expect(result!.benchmark_name).toBe('Back Squat');
+      expect(result!.benchmark_value).toBe(100);
     });
 
     it('should update existing benchmark', async () => {
@@ -240,12 +250,13 @@ describe('libraryRouter', () => {
 
       const caller = createCaller(ctx);
       const result = await caller.saveUserBenchmark({
-        master_exercise_id: 'master-squat-id',
-        one_rep_max_weight: 100,
+        benchmark_name: 'Back Squat',
+        benchmark_value: 100,
+        benchmark_unit: 'kg',
       });
 
       expect(result).toBeDefined();
-      expect(result!.one_rep_max_weight).toBe(100);
+      expect(result!.benchmark_value).toBe(100);
     });
   });
 

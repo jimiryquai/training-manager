@@ -1,11 +1,13 @@
 import type { Kysely } from 'kysely';
-import type { Database, MovementCategory } from '../db/schema';
+import type { Database, MovementCategory, ExerciseType } from '../db/schema';
 
 export interface CreateExerciseInput {
   tenant_id: string;
   name: string;
   movement_category: MovementCategory;
   progression_level: number;
+  exercise_type: ExerciseType;
+  benchmark_target?: string | null;
   master_exercise_id?: string | null;
   conversion_factor?: number | null;
 }
@@ -16,6 +18,8 @@ export interface ExerciseDictionaryRecord {
   name: string;
   movement_category: MovementCategory;
   progression_level: number;
+  exercise_type: ExerciseType;
+  benchmark_target: string | null;
   master_exercise_id: string | null;
   conversion_factor: number | null;
 }
@@ -35,6 +39,8 @@ export async function createExercise(
       name: input.name,
       movement_category: input.movement_category,
       progression_level: input.progression_level,
+      exercise_type: input.exercise_type,
+      benchmark_target: input.benchmark_target ?? null,
       master_exercise_id: input.master_exercise_id ?? null,
       conversion_factor: input.conversion_factor ?? null,
       created_at: now,
@@ -114,16 +120,22 @@ export async function getExerciseWithMaster(
 export interface CreateUserBenchmarkInput {
   tenant_id: string;
   user_id: string;
-  master_exercise_id: string;
-  one_rep_max_weight: number;
+  benchmark_name: string;
+  benchmark_value?: number | null;
+  benchmark_unit?: string | null;
+  master_exercise_id?: string | null;
+  one_rep_max_weight?: number | null;
 }
 
 export interface UserBenchmarkRecord {
   id: string;
   tenant_id: string;
   user_id: string;
-  master_exercise_id: string;
-  one_rep_max_weight: number;
+  benchmark_name: string;
+  benchmark_value: number | null;
+  benchmark_unit: string | null;
+  master_exercise_id: string | null;
+  one_rep_max_weight: number | null;
 }
 
 export async function upsertUserBenchmark(
@@ -136,7 +148,7 @@ export async function upsertUserBenchmark(
     .selectFrom('user_benchmarks')
     .where('tenant_id', '=', input.tenant_id)
     .where('user_id', '=', input.user_id)
-    .where('master_exercise_id', '=', input.master_exercise_id)
+    .where('benchmark_name', '=', input.benchmark_name)
     .selectAll()
     .executeTakeFirst();
 
@@ -144,7 +156,9 @@ export async function upsertUserBenchmark(
     const result = await db
       .updateTable('user_benchmarks')
       .set({
-        one_rep_max_weight: input.one_rep_max_weight,
+        benchmark_value: input.benchmark_value ?? null,
+        benchmark_unit: input.benchmark_unit ?? null,
+        one_rep_max_weight: input.one_rep_max_weight ?? null,
         updated_at: now,
       })
       .where('id', '=', existing.id)
@@ -161,8 +175,11 @@ export async function upsertUserBenchmark(
       id,
       tenant_id: input.tenant_id,
       user_id: input.user_id,
-      master_exercise_id: input.master_exercise_id,
-      one_rep_max_weight: input.one_rep_max_weight,
+      benchmark_name: input.benchmark_name,
+      benchmark_value: input.benchmark_value ?? null,
+      benchmark_unit: input.benchmark_unit ?? null,
+      master_exercise_id: input.master_exercise_id ?? null,
+      one_rep_max_weight: input.one_rep_max_weight ?? null,
       created_at: now,
       updated_at: now,
     })

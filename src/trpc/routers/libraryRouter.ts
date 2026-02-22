@@ -7,14 +7,17 @@ import {
   getExerciseWithMaster,
   upsertUserBenchmark,
 } from '../../services/exerciseDictionary.service';
-import type { MovementCategory } from '../../db/schema';
+import type { MovementCategory, ExerciseType } from '../../db/schema';
 
 const movementCategorySchema = z.enum(['squat', 'hinge', 'push', 'pull', 'carry', 'core', 'cardio']);
+const exerciseTypeSchema = z.enum(['dynamic', 'isometric', 'eccentric']);
 
 const addExerciseSchema = z.object({
   name: z.string().min(1),
   movement_category: movementCategorySchema,
   progression_level: z.number().int().min(1),
+  exercise_type: exerciseTypeSchema,
+  benchmark_target: z.string().optional(),
   master_exercise_id: z.string().optional(),
   conversion_factor: z.number().positive().optional(),
 });
@@ -28,8 +31,11 @@ const getExerciseWithMasterSchema = z.object({
 });
 
 const saveUserBenchmarkSchema = z.object({
-  master_exercise_id: z.string().min(1),
-  one_rep_max_weight: z.number().positive(),
+  benchmark_name: z.string().min(1),
+  benchmark_value: z.number().optional(),
+  benchmark_unit: z.string().optional(),
+  master_exercise_id: z.string().optional(),
+  one_rep_max_weight: z.number().positive().optional(),
 });
 
 export const libraryRouter = router({
@@ -41,6 +47,8 @@ export const libraryRouter = router({
         name: input.name,
         movement_category: input.movement_category as MovementCategory,
         progression_level: input.progression_level,
+        exercise_type: input.exercise_type as ExerciseType,
+        benchmark_target: input.benchmark_target,
         master_exercise_id: input.master_exercise_id,
         conversion_factor: input.conversion_factor,
       });
@@ -70,6 +78,9 @@ export const libraryRouter = router({
       return upsertUserBenchmark(ctx.db, {
         tenant_id: ctx.tenantId,
         user_id: ctx.userId,
+        benchmark_name: input.benchmark_name,
+        benchmark_value: input.benchmark_value,
+        benchmark_unit: input.benchmark_unit,
         master_exercise_id: input.master_exercise_id,
         one_rep_max_weight: input.one_rep_max_weight,
       });

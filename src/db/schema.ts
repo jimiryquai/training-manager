@@ -4,6 +4,9 @@ export type Modality = 'strength' | 'rowing' | 'running' | 'cycling' | 'swimming
 
 export type MovementCategory = 'squat' | 'hinge' | 'push' | 'pull' | 'carry' | 'core' | 'cardio';
 
+export type ExerciseType = 'dynamic' | 'isometric' | 'eccentric';
+export type BenchmarkUnit = 'kg' | 'lbs' | 'seconds';
+
 export interface UserTable {
   id: Generated<string>;
   email: string;
@@ -48,8 +51,10 @@ export interface ExerciseDictionaryTable {
   name: string;
   movement_category: MovementCategory;
   progression_level: number;
-  master_exercise_id: string | null;
+  exercise_type: ExerciseType;
+  benchmark_target: string | null;
   conversion_factor: number | null;
+  master_exercise_id: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -58,8 +63,11 @@ export interface UserBenchmarksTable {
   id: Generated<string>;
   tenant_id: string;
   user_id: string;
-  master_exercise_id: string;
-  one_rep_max_weight: number;
+  benchmark_name: string;
+  benchmark_value: number | null;
+  benchmark_unit: string | null;
+  master_exercise_id: string | null;
+  one_rep_max_weight: number | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
