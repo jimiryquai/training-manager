@@ -1,19 +1,17 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Slider } from '@/app/components/ui/slider';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/app/components/ui/form';
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/app/components/ui/field';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { logWellnessSchema, type LogWellnessInput } from './schemas';
 import {
@@ -55,99 +53,106 @@ export function LogWellnessForm({ onSubmit, defaultDate }: LogWellnessFormProps)
         <CardTitle>Log Wellness</CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FieldGroup>
+            <Controller
               name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormDescription>The date of this measurement</FormDescription>
-                  <FormMessage />
-                </FormItem>
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="wellness-date">Date</FieldLabel>
+                  <Input
+                    {...field}
+                    id="wellness-date"
+                    type="date"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>The date of this measurement</FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
               )}
             />
-            <FormField
-              control={form.control}
+            <Controller
               name="rhr"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Resting Heart Rate (bpm)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    />
-                  </FormControl>
-                  <FormDescription>Your resting heart rate in beats per minute</FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
               control={form.control}
-              name="hrv_rmssd"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>HRV RMSSD (ms)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    />
-                  </FormControl>
-                  <FormDescription>Heart rate variability in milliseconds</FormDescription>
-                  <FormMessage />
-                </FormItem>
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="wellness-rhr">Resting Heart Rate (bpm)</FieldLabel>
+                  <Input
+                    {...field}
+                    id="wellness-rhr"
+                    type="number"
+                    aria-invalid={fieldState.invalid}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                  />
+                  <FieldDescription>Your resting heart rate in beats per minute</FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
               )}
             />
+            <Controller
+              name="hrv_rmssd"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="wellness-hrv">HRV RMSSD (ms)</FieldLabel>
+                  <Input
+                    {...field}
+                    id="wellness-hrv"
+                    type="number"
+                    aria-invalid={fieldState.invalid}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                  />
+                  <FieldDescription>Heart rate variability in milliseconds</FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
 
-            <div className="space-y-4 pt-4 border-t">
-              <h3 className="font-medium">Subjective Metrics</h3>
+          <div className="space-y-4 pt-4 border-t">
+            <h3 className="font-medium">Subjective Metrics</h3>
+            <FieldGroup>
               {wellnessMetrics.map((metric) => (
-                <FormField
+                <Controller
                   key={metric.name}
-                  control={form.control}
                   name={metric.name}
-                  render={({ field }) => {
+                  control={form.control}
+                  render={({ field, fieldState }) => {
                     const value = field.value ?? 3;
                     return (
-                      <FormItem>
+                      <Field data-invalid={fieldState.invalid}>
                         <div className="flex justify-between items-center mb-2">
-                          <FormLabel className="!mt-0">{metric.label}</FormLabel>
+                          <FieldLabel htmlFor={`wellness-${metric.name}`} className="!mt-0">
+                            {metric.label}
+                          </FieldLabel>
                           <span className={`font-bold ${getSliderTextColor(value, metric.polarity)}`}>
                             {value}/5 - {getMetricLabel(metric.name, value)}
                           </span>
                         </div>
-                        <FormControl>
-                          <Slider
-                            min={1}
-                            max={5}
-                            step={1}
-                            value={[value]}
-                            onValueChange={(vals) => field.onChange(vals[0])}
-                            rangeClassName={getSliderColor(value, metric.polarity)}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
+                        <Slider
+                          id={`wellness-${metric.name}`}
+                          min={1}
+                          max={5}
+                          step={1}
+                          value={[value]}
+                          onValueChange={(vals: number | readonly number[]) => field.onChange(Array.isArray(vals) ? vals[0] : vals)}
+                          rangeClassName={getSliderColor(value, metric.polarity)}
+                          aria-invalid={fieldState.invalid}
+                        />
+                        {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                      </Field>
                     );
                   }}
                 />
               ))}
-            </div>
+            </FieldGroup>
+          </div>
 
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Saving...' : 'Save Wellness'}
-            </Button>
-          </form>
-        </Form>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? 'Saving...' : 'Save Wellness'}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );

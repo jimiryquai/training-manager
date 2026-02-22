@@ -1,6 +1,6 @@
 'use client';
 
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -12,14 +12,12 @@ import {
   SelectValue,
 } from '@/app/components/ui/select';
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/app/components/ui/form';
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from '@/app/components/ui/field';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { logWorkoutSchema, type LogWorkoutInput } from './schemas';
 
@@ -59,33 +57,41 @@ export function LogWorkoutForm({ onSubmit, defaultDate }: LogWorkoutFormProps) {
         <CardTitle>Log Workout</CardTitle>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FieldGroup>
+            <Controller
               name="date"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="workout-date">Date</FieldLabel>
+                  <Input
+                    {...field}
+                    id="workout-date"
+                    type="date"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
               )}
             />
-            <FormField
-              control={form.control}
+            <Controller
               name="modality"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Activity Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select activity" />
-                      </SelectTrigger>
-                    </FormControl>
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="workout-modality">Activity Type</FieldLabel>
+                  <Select
+                    name={field.name}
+                    value={field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="workout-modality"
+                      aria-invalid={fieldState.invalid}
+                    >
+                      <SelectValue placeholder="Select activity" />
+                    </SelectTrigger>
                     <SelectContent>
                       {modalities.map((m) => (
                         <SelectItem key={m.value} value={m.value}>
@@ -94,52 +100,53 @@ export function LogWorkoutForm({ onSubmit, defaultDate }: LogWorkoutFormProps) {
                       ))}
                     </SelectContent>
                   </Select>
-                  <FormMessage />
-                </FormItem>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
               )}
             />
-            <FormField
-              control={form.control}
+            <Controller
               name="duration_minutes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Duration (minutes)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
               control={form.control}
-              name="srpe"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>sRPE (1-10)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={10}
-                      {...field}
-                      onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                    />
-                  </FormControl>
-                  <FormDescription>Session Rating of Perceived Exertion</FormDescription>
-                  <FormMessage />
-                </FormItem>
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="workout-duration">Duration (minutes)</FieldLabel>
+                  <Input
+                    {...field}
+                    id="workout-duration"
+                    type="number"
+                    aria-invalid={fieldState.invalid}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                  />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
               )}
             />
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Saving...' : 'Save Workout'}
-            </Button>
-          </form>
-        </Form>
+            <Controller
+              name="srpe"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="workout-srpe">sRPE (1-10)</FieldLabel>
+                  <Input
+                    {...field}
+                    id="workout-srpe"
+                    type="number"
+                    min={1}
+                    max={10}
+                    aria-invalid={fieldState.invalid}
+                    onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                  />
+                  <FieldDescription>Session Rating of Perceived Exertion</FieldDescription>
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? 'Saving...' : 'Save Workout'}
+          </Button>
+        </form>
       </CardContent>
     </Card>
   );
