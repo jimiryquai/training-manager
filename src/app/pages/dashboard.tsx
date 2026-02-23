@@ -24,16 +24,16 @@ export function Dashboard() {
     );
   }
 
-  const acwrMap = new Map(data?.acwrHistory?.map(a => [a.date, a]) ?? []);
-  const chartData = data?.wellnessHistory.map((w) => {
-    const acwr = acwrMap.get(w.date);
+  const wellnessMap = new Map(data?.wellnessHistory?.map(w => [w.date, w]) ?? []);
+  const chartData = data?.acwrHistory.map((a) => {
+    const w = wellnessMap.get(a.date);
     return {
-      date: w.date,
-      ratio: acwr?.ratio ?? 0,
-      acute_load: acwr?.acute_load ?? 0,
-      chronic_load: acwr?.chronic_load ?? 0,
-      rhr: w.rhr,
-      hrv_rmssd: w.hrv_rmssd,
+      date: a.date,
+      ratio: a.ratio,
+      acute_load: a.acute_load,
+      chronic_load: a.chronic_load,
+      rhr: w?.rhr,
+      hrv_rmssd: w?.hrv_rmssd,
     };
   }) || [];
 

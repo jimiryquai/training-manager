@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 10afe9ca844c01eec0f56a3b48f3a79e8485952c..48a607c1f0fddd465577dbd4c3165df58f1f803b 100644
+--- a/package.json
++++ b/package.json
+@@ -8,7 +8,7 @@
+     "directory": "packages/utils"
+   },
+   "license": "MIT",
+-  "type": "commonjs",
++  "type": "module",
+   "dependencies": {
+     "@babel/runtime": "^7.28.6",
+     "@floating-ui/utils": "^0.2.10",

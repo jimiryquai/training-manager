@@ -47,20 +47,27 @@ export const dashboardRouter = router({
         hrv_ratio: w.hrv_ratio,
       }));
 
-      const acwrHistory: ACWRHistoryPoint[] = wellnessHistory.map(w => {
-        const acute_load = calculateAcuteLoad(allSessions, w.date);
-        const chronic_load = calculateChronicLoad(allSessions, w.date);
+      const acwrHistory: ACWRHistoryPoint[] = [];
+
+      for (let i = input.history_days - 1; i >= 0; i--) {
+        const d = new Date(endDate);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+
+        const acute_load = calculateAcuteLoad(allSessions, dateStr);
+        const chronic_load = calculateChronicLoad(allSessions, dateStr);
         const ratio = chronic_load === 0 ? 0 : acute_load / chronic_load;
-        return {
-          date: w.date,
+
+        acwrHistory.push({
+          date: dateStr,
           acute_load,
           chronic_load,
           ratio,
           isDanger: ratio > 1.5,
-        };
-      });
+        });
+      }
 
-      const currentAcwr = acwrHistory.length > 0 
+      const currentAcwr = acwrHistory.length > 0
         ? acwrHistory[acwrHistory.length - 1]
         : { acute_load: 0, chronic_load: 0, ratio: 0, isDanger: false };
 

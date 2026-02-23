@@ -14,19 +14,19 @@ import { Line, LineChart, XAxis, YAxis } from 'recharts';
 interface FatigueChartProps {
   data: {
     date: string;
-    rhr: number;
-    hrv_rmssd: number;
+    rhr?: number;
+    hrv_rmssd?: number;
   }[];
 }
 
 const chartConfig = {
   rhr: {
     label: 'RHR (bpm)',
-    color: 'var(--chart-1)',
+    color: 'var(--color-chart-1)',
   },
   hrv_rmssd: {
     label: 'HRV (ms)',
-    color: 'var(--chart-2)',
+    color: 'var(--color-chart-2)',
   },
 } satisfies ChartConfig;
 

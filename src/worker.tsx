@@ -1,4 +1,4 @@
-import { render, route, layout } from "rwsdk/router";
+import { render, route, layout, prefix } from "rwsdk/router";
 import { defineApp } from "rwsdk/worker";
 import { defineDurableSession } from "rwsdk/auth";
 import { env } from "cloudflare:workers";
@@ -10,9 +10,16 @@ import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
 import { LogData } from "@/app/pages/logData";
 import { AppLayout } from "@/app/layouts/AppLayout";
+import { CoachDocument } from "@/admin/Document";
+import { CoachLayout } from "@/admin/layouts/CoachLayout";
+import { AdminDashboard } from "@/admin/pages/dashboard/DashboardPage";
+import { LibraryPage } from "@/admin/pages/library/LibraryPage";
+import { requireCoach } from "@/admin/interrupters";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";
 import type { Database } from "./db/schema";
+import { handleVitestRequest } from "rwsdk-community/worker";
+import * as testUtils from "./app/test-utils";
 
 export type AppContext = {
   session?: { userId: string; tenantId: string } | null;
@@ -44,7 +51,7 @@ export default defineApp([
   async function sessionMiddleware({ request, ctx }) {
     const session = await sessionStore.load(request);
     ctx.session = session;
-    
+
     // Dev-only: Check for dev session cookie
     if (!session && import.meta.env.DEV) {
       const cookies = request.headers.get("cookie") || "";
@@ -57,6 +64,9 @@ export default defineApp([
       }
     }
   },
+  route("/_test", {
+    post: ({ request }) => handleVitestRequest(request, testUtils),
+  }),
   route("/trpc/*", async ({ request, ctx }) => {
     return trpcHandler(request, ctx.session ?? undefined);
   }),
@@ -75,6 +85,15 @@ export default defineApp([
     layout(({ children, requestInfo }) => <AppLayout currentPath={requestInfo?.path || '/'}>{children}</AppLayout>, [
       route("/", Home),
       route("/log", LogData)
+    ])
+  ]),
+  render(CoachDocument, [
+    prefix("/coach", [
+      requireCoach,
+      layout(({ children, requestInfo }) => <CoachLayout currentPath={requestInfo?.path || '/coach'}>{children}</CoachLayout>, [
+        route("/", AdminDashboard),
+        route("/library", LibraryPage)
+      ])
     ])
   ]),
 ]);

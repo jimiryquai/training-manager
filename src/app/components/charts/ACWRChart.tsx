@@ -21,11 +21,11 @@ interface ACWRChartProps {
 const chartConfig = {
   ratio: {
     label: 'ACWR',
-    color: 'var(--chart-1)',
+    color: 'var(--color-chart-1)',
   },
   danger: {
     label: 'Danger Zone',
-    color: 'var(--destructive)',
+    color: 'var(--color-destructive)',
   },
 } satisfies ChartConfig;
 

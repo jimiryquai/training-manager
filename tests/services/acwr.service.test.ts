@@ -1,14 +1,13 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { calculateACWR, calculateAcuteLoad, calculateChronicLoad, isDangerZone } from '../../src/services/acwr.service';
-import * as workoutSessionService from '../../src/services/workoutSession.service';
-import type { Kysely } from 'kysely';
-import type { Database } from '../../src/db/schema';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { calculateAcuteLoad, calculateChronicLoad, isDangerZone } from '../../src/services/acwr.service';
+import { vitestInvoke } from 'rwsdk-community/test';
+import type { CreateWorkoutSessionInput } from '../../src/services/workoutSession.service';
 
-vi.mock('../../src/services/workoutSession.service');
+const TEST_TENANT = 'tenant-test';
 
 describe('ACWR Service', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
+  beforeEach(async () => {
+    await vitestInvoke('test_cleanDatabase', TEST_TENANT);
   });
 
   describe('isDangerZone', () => {
@@ -60,7 +59,8 @@ describe('ACWR Service', () => {
         });
       }
       const result = calculateChronicLoad(sessions, '2026-02-21');
-      expect(result).toBe(100);
+      // 28 days of 100 load = 2800. Averaged over 4 weeks: 2800 / 4 = 700
+      expect(result).toBe(700);
     });
 
     it('should handle sparse data (missing days)', () => {
@@ -68,68 +68,74 @@ describe('ACWR Service', () => {
         { date: '2026-02-21', training_load: 2800 },
       ];
       const result = calculateChronicLoad(sessions, '2026-02-21');
-      expect(result).toBe(100);
+      // 28 days total: sum = 2800. Averaged over 4 weeks: 2800 / 4 = 700
+      expect(result).toBe(700);
     });
   });
 
-  describe('calculateACWR', () => {
-    it('should return correct ratio and danger flag', async () => {
-      vi.mocked(workoutSessionService.getWorkoutSessionsByDateRange)
-        .mockResolvedValueOnce([
-          { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', modality: 'strength', duration_minutes: 60, srpe: 7, training_load: 700 }
-        ] as any)
-        .mockResolvedValueOnce([
-          { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', modality: 'strength', duration_minutes: 60, srpe: 7, training_load: 2800 }
-        ] as any);
+  describe('calculateACWR Integration', () => {
+    async function setupSessions(sessions: Partial<CreateWorkoutSessionInput>[]) {
+      for (const s of sessions) {
+        await vitestInvoke('test_createWorkoutSession', {
+          tenant_id: TEST_TENANT,
+          user_id: 'user-1',
+          modality: 'strength',
+          duration_minutes: 60,
+          srpe: 7, // Load = 420 by default unless duration/srpe overridden
+          date: '2026-02-21',
+          ...s
+        });
+      }
+    }
 
-      const mockDb = {} as Kysely<Database>;
+    it('should return correct ratio and danger flag based on real database records', async () => {
+      // Acute session (last 7 days). Load = 70 * 10 = 700
+      await setupSessions([{ date: '2026-02-21', duration_minutes: 70, srpe: 10 }]);
+      // Chronic session (8-28 days ago). Load = 280 * 10 = 2800
+      await setupSessions([{ date: '2026-02-01', duration_minutes: 280, srpe: 10 }]);
 
-      const result = await calculateACWR(mockDb, {
-        tenant_id: 'tenant-1',
+      const result = await vitestInvoke<any>('test_calculateACWR', {
+        tenant_id: TEST_TENANT,
         date: '2026-02-21'
       });
 
-      expect(result.ratio).toBeCloseTo(7, 2);
-      expect(result.isDanger).toBe(true);
+      // Acute load = sum of past 7 days = 700
       expect(result.acute_load).toBe(700);
-      expect(result.chronic_load).toBe(100);
+      expect(result.chronic_load).toBe((2800 + 700) / 4); // Both are in the 28 day window
+      const expectedRatio = 700 / ((2800 + 700) / 4);
+      expect(result.ratio).toBeCloseTo(expectedRatio, 2);
+      expect(result.isDanger).toBe(expectedRatio > 1.5);
     });
 
     it('should return ratio of 0 when chronic load is 0', async () => {
-      vi.mocked(workoutSessionService.getWorkoutSessionsByDateRange)
-        .mockResolvedValueOnce([
-          { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', modality: 'strength', duration_minutes: 60, srpe: 7, training_load: 100 }
-        ] as any)
-        .mockResolvedValueOnce([]);
-
-      const mockDb = {} as Kysely<Database>;
-
-      const result = await calculateACWR(mockDb, {
-        tenant_id: 'tenant-1',
+      const result = await vitestInvoke<any>('test_calculateACWR', {
+        tenant_id: TEST_TENANT,
         date: '2026-02-21'
       });
 
       expect(result.ratio).toBe(0);
       expect(result.isDanger).toBe(false);
+      expect(result.acute_load).toBe(0);
+      expect(result.chronic_load).toBe(0);
     });
 
-    it('should detect danger zone when ratio exceeds 1.5', async () => {
-      vi.mocked(workoutSessionService.getWorkoutSessionsByDateRange)
-        .mockResolvedValueOnce([
-          { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', modality: 'strength', duration_minutes: 60, srpe: 7, training_load: 1600 }
-        ] as any)
-        .mockResolvedValueOnce([
-          { id: '1', tenant_id: 'tenant-1', user_id: 'user-1', date: '2026-02-21', modality: 'strength', duration_minutes: 60, srpe: 7, training_load: 2800 }
-        ] as any);
+    it('should verify ratio > 1.5 triggers danger', async () => {
+      // Very high acute load
+      await setupSessions([{ date: '2026-02-21', duration_minutes: 400, srpe: 10 }]); // Load = 4000
+      // Low chronic past load
+      await setupSessions([{ date: '2026-02-01', duration_minutes: 10, srpe: 10 }]); // Load = 100
 
-      const mockDb = {} as Kysely<Database>;
-
-      const result = await calculateACWR(mockDb, {
-        tenant_id: 'tenant-1',
+      const result = await vitestInvoke<any>('test_calculateACWR', {
+        tenant_id: TEST_TENANT,
         date: '2026-02-21'
       });
 
-      expect(result.ratio).toBeCloseTo(16, 0);
+      // Acute = 4000
+      // Chronic = (4000 + 100) / 4 = 1025
+      // Ratio = 4000 / 1025 = 3.9
+      expect(result.acute_load).toBe(4000);
+      expect(result.chronic_load).toBe(1025);
+      expect(result.ratio).toBeGreaterThan(1.5);
       expect(result.isDanger).toBe(true);
     });
   });
