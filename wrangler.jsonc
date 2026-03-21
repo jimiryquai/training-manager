@@ -10,6 +10,10 @@
   "observability": {
     "enabled": true
   },
+  "ai": {
+    "binding": "AI",
+    "remote": false
+  },
   "vars": {},
   "d1_databases": [
     {
@@ -21,13 +25,18 @@
   ],
   "durable_objects": {
     "bindings": [
-      { "name": "USER_SESSION_DO", "class_name": "UserSession" }
+      { "name": "USER_SESSION_DO", "class_name": "UserSession" },
+      { "name": "COACH_AGENT_DO", "class_name": "CoachAgent" }
     ]
   },
   "migrations": [
     {
       "tag": "v1",
       "new_sqlite_classes": ["UserSession"]
+    },
+    {
+      "tag": "v2",
+      "new_sqlite_classes": ["CoachAgent"]
     }
   ]
 }

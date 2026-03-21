@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { vitestInvoke } from 'rwsdk-community/test';
 
-const TEST_TENANT = 'tenant-test';
+const TEST_TENANT = 'tenant-library-test';
+// Must match the hardcoded userId in test_library_saveBenchmark
+const TEST_USER = 'test-user';
 
 describe('libraryRouter Integration Tests', () => {
   beforeEach(async () => {
@@ -9,19 +11,19 @@ describe('libraryRouter Integration Tests', () => {
   });
 
   describe('addExercise & getExercises', () => {
-    it('should create a master exercise and be able to fetch it', async () => {
+    it('should create an exercise and be able to fetch it', async () => {
       const result = await vitestInvoke<any>('test_library_addExercise', {
         tenant_id: TEST_TENANT,
         name: 'Back Squat',
         movement_category: 'squat',
-        progression_level: 5,
         exercise_type: 'dynamic',
       });
 
       expect(result).toBeDefined();
       expect(result.name).toBe('Back Squat');
-      expect(result.master_exercise_id).toBeNull();
       expect(result.id).toBeDefined();
+      expect(result.movement_category).toBe('squat');
+      expect(result.exercise_type).toBe('dynamic');
 
       const fetchResult = await vitestInvoke<any>('test_library_getExercises', {
         tenant_id: TEST_TENANT,
@@ -32,33 +34,43 @@ describe('libraryRouter Integration Tests', () => {
       expect(fetchResult[0].name).toBe('Back Squat');
     });
 
-    it('should create a child exercise with master reference', async () => {
-      const master = await vitestInvoke<any>('test_library_addExercise', {
+    it('should create an exercise with benchmark target and conversion factor', async () => {
+      // First create the "master" exercise
+      await vitestInvoke('test_library_addExercise', {
         tenant_id: TEST_TENANT,
         name: 'Back Squat',
         movement_category: 'squat',
-        progression_level: 5,
         exercise_type: 'dynamic',
+        benchmark_target: 'back_squat',
       });
 
-      const child = await vitestInvoke<any>('test_library_addExercise', {
+      // Then create a variant with conversion factor
+      const variant = await vitestInvoke<any>('test_library_addExercise', {
         tenant_id: TEST_TENANT,
         name: 'Goblet Squat',
         movement_category: 'squat',
-        progression_level: 2,
         exercise_type: 'dynamic',
-        master_exercise_id: master.id,
+        benchmark_target: 'back_squat',
         conversion_factor: 0.7
       });
 
-      expect(child).toBeDefined();
-      expect(child.name).toBe('Goblet Squat');
-      expect(child.master_exercise_id).toBe(master.id);
-      expect(child.conversion_factor).toBe(0.7);
+      expect(variant).toBeDefined();
+      expect(variant.name).toBe('Goblet Squat');
+      expect(variant.benchmark_target).toBe('back_squat');
+      expect(variant.conversion_factor).toBe(0.7);
     });
   });
 
   describe('saveUserBenchmark', () => {
+    beforeEach(async () => {
+      // Create user first - required for FK constraint
+      await vitestInvoke('test_createUser', {
+        id: TEST_USER,
+        email: 'library-test@example.com',
+        tenant_id: TEST_TENANT,
+      });
+    });
+
     it('should save a user benchmark and update it', async () => {
       const saveResult = await vitestInvoke<any>('test_library_saveBenchmark', {
         tenant_id: TEST_TENANT,
@@ -79,7 +91,7 @@ describe('libraryRouter Integration Tests', () => {
       });
 
       expect(updateResult.benchmark_value).toBe(205);
-      // Ensure it updated the same row, not inserted a new one (assuming id exists/tracked internally)
+      // Same record updated, not a new one
       expect(updateResult.id).toBe(saveResult.id);
     });
   });

@@ -1,3 +1,4 @@
-export { wellnessRouter } from './wellnessRouter';
-export { trainingRouter } from './trainingRouter';
-export { libraryRouter } from './libraryRouter';
+export * from './wellnessRouter';
+export * from './trainingRouter';
+export * from './libraryRouter';
+export * from './trainingPlanRouter';

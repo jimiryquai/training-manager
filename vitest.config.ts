@@ -11,6 +11,8 @@ export default defineWorkersConfig({
         wrangler: {
           configPath: "./dist/worker/wrangler.json",
         },
+        // Disable remote bindings to avoid requiring wrangler login
+        remoteBindings: false,
       },
     },
   },

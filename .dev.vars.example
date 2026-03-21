@@ -1,0 +1,5 @@
+# CoachAgent AI Provider Configuration
+# Leave OPENAI_API_KEY empty to use Workers AI (default, free)
+# Set OPENAI_API_KEY to use OpenAI's GPT-4o-mini (premium, requires API key)
+
+OPENAI_API_KEY=
