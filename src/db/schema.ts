@@ -150,7 +150,7 @@ export interface TrainingPlanTable {
  */
 export interface TrainingSessionTable {
   id: Generated<string>;
-  tenant_id: string;
+  tenant_id: string | null;
   plan_id: string; // FK to TrainingPlan
   block_name: string | null; // e.g., 'Hypertrophy', 'Strength'
   week_number: number | null;
@@ -166,7 +166,7 @@ export interface TrainingSessionTable {
  */
 export interface SessionExerciseTable {
   id: Generated<string>;
-  tenant_id: string;
+  tenant_id: string | null;
   session_id: string; // FK to TrainingSession
   exercise_dictionary_id: string; // FK to ExerciseDictionary
   circuit_group: string | null; // Groups supersets: 'A', 'B', 'Warmup'

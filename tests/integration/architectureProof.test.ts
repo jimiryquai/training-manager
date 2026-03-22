@@ -48,13 +48,13 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
 
     // Add a session and exercise to the template
     const templateSession = await createTrainingSession(db, {
-      tenant_id: 'SYSTEM', // Technically it uses plan_id's tenant, but service requires it
+      tenant_id: null,
       plan_id: templatePlan!.id,
       session_name: 'Heavy Leg Day'
     });
 
     await createSessionExercise(db, {
-      tenant_id: 'SYSTEM',
+      tenant_id: null,
       session_id: templateSession!.id,
       exercise_dictionary_id: exerciseId,
       order_in_session: 1,

@@ -207,7 +207,7 @@ export async function cloneTrainingPlanToTenant(
 // ============================================================================
 
 export interface CreateTrainingSessionInput {
-  tenant_id: string;
+  tenant_id: string | null;
   plan_id: string;
   block_name?: string | null;
   week_number?: number | null;
@@ -217,7 +217,7 @@ export interface CreateTrainingSessionInput {
 
 export type TrainingSessionRecord = {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   plan_id: string;
   block_name: string | null;
   week_number: number | null;
@@ -253,7 +253,7 @@ export async function createTrainingSession(
 
 export interface GetTrainingSessionInput {
   id: string;
-  tenant_id?: string;
+  tenant_id?: string | null;
 }
 
 export async function getTrainingSessionById(
@@ -265,7 +265,7 @@ export async function getTrainingSessionById(
     .where('id', '=', input.id);
 
   if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', '=', input.tenant_id);
+    query = query.where('tenant_id', 'is', input.tenant_id);
   }
 
   return query.selectAll().executeTakeFirst();
@@ -308,7 +308,7 @@ export async function getTrainingSessionsByWeek(
 
 export interface UpdateTrainingSessionInput {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   block_name?: string | null;
   week_number?: number | null;
   day_of_week?: string | null;
@@ -331,7 +331,7 @@ export async function updateTrainingSession(
     .updateTable('training_session')
     .set(updates)
     .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
+    .where('tenant_id', 'is', input.tenant_id)
     .returningAll()
     .executeTakeFirst();
 
@@ -340,7 +340,7 @@ export async function updateTrainingSession(
 
 export interface DeleteTrainingSessionInput {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
 }
 
 export async function deleteTrainingSession(
@@ -350,7 +350,7 @@ export async function deleteTrainingSession(
   const result = await db
     .deleteFrom('training_session')
     .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
+    .where('tenant_id', 'is', input.tenant_id)
     .executeTakeFirst();
 
   return result.numDeletedRows > 0;
@@ -361,7 +361,7 @@ export async function deleteTrainingSession(
 // ============================================================================
 
 export interface CreateSessionExerciseInput {
-  tenant_id: string;
+  tenant_id: string | null;
   session_id: string;
   exercise_dictionary_id: string;
   circuit_group?: string | null;
@@ -378,7 +378,7 @@ export interface CreateSessionExerciseInput {
 
 export type SessionExerciseRecord = {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   session_id: string;
   exercise_dictionary_id: string;
   circuit_group: string | null;
@@ -428,7 +428,7 @@ export async function createSessionExercise(
 
 export interface GetSessionExerciseInput {
   id: string;
-  tenant_id?: string;
+  tenant_id?: string | null;
 }
 
 export async function getSessionExerciseById(
@@ -440,7 +440,7 @@ export async function getSessionExerciseById(
     .where('id', '=', input.id);
 
   if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', '=', input.tenant_id);
+    query = query.where('tenant_id', 'is', input.tenant_id);
   }
 
   return query.selectAll().executeTakeFirst();
@@ -486,7 +486,7 @@ export async function getSessionExercisesGrouped(
 
 export interface UpdateSessionExerciseInput {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
   circuit_group?: string | null;
   order_in_session?: number;
   scheme_name?: string | null;
@@ -521,7 +521,7 @@ export async function updateSessionExercise(
     .updateTable('session_exercise')
     .set(updates)
     .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
+    .where('tenant_id', 'is', input.tenant_id)
     .returningAll()
     .executeTakeFirst();
 
@@ -530,7 +530,7 @@ export async function updateSessionExercise(
 
 export interface DeleteSessionExerciseInput {
   id: string;
-  tenant_id: string;
+  tenant_id: string | null;
 }
 
 export async function deleteSessionExercise(
@@ -540,7 +540,7 @@ export async function deleteSessionExercise(
   const result = await db
     .deleteFrom('session_exercise')
     .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
+    .where('tenant_id', 'is', input.tenant_id)
     .executeTakeFirst();
 
   return result.numDeletedRows > 0;
@@ -562,7 +562,7 @@ export interface TrainingSessionWithExercises extends TrainingSessionRecord {
  */
 export async function getFullTrainingSession(
   db: Kysely<Database>,
-  input: { id: string; tenant_id?: string }
+  input: { id: string; tenant_id?: string | null }
 ): Promise<TrainingSessionWithExercises | undefined> {
   const session = await getTrainingSessionById(db, input);
   if (!session) return undefined;

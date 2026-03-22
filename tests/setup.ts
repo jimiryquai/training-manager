@@ -129,7 +129,7 @@ CREATE INDEX IF NOT EXISTS idx_training_plan_system ON training_plan(is_system_t
 -- Training Session table
 CREATE TABLE IF NOT EXISTS training_session (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL,
+  tenant_id TEXT,
   plan_id TEXT NOT NULL,
   block_name TEXT,
   week_number INTEGER,
@@ -146,7 +146,7 @@ CREATE INDEX IF NOT EXISTS idx_training_session_plan ON training_session(plan_id
 -- Session Exercise table
 CREATE TABLE IF NOT EXISTS session_exercise (
   id TEXT PRIMARY KEY,
-  tenant_id TEXT NOT NULL,
+  tenant_id TEXT,
   session_id TEXT NOT NULL,
   exercise_dictionary_id TEXT NOT NULL,
   circuit_group TEXT,
