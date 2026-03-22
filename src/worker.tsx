@@ -10,6 +10,7 @@ import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
 import { Home } from "@/app/pages/home";
 import { LogData } from "@/app/pages/logData";
+import CoachTestPage from "@/app/pages/coachTest";
 import { AppLayout } from "@/app/layouts/AppLayout";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";
@@ -30,7 +31,7 @@ export type Env = {
   DB: D1Database;
   AI: Ai;
   USER_SESSION_DO: DurableObjectNamespace;
-  COACH_AGENT_DO: DurableObjectNamespace;
+  CoachAgent: DurableObjectNamespace;
   OPENAI_API_KEY?: string;
 };
 
@@ -111,7 +112,8 @@ export default defineApp([
   render(Document, [
     layout(({ children, requestInfo }) => <AppLayout currentPath={requestInfo?.path || '/'}>{children}</AppLayout>, [
       route("/", Home),
-      route("/log", LogData)
+      route("/log", LogData),
+      route("/coach-test", CoachTestPage)
     ])
   ])
 ]);

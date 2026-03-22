@@ -26,7 +26,7 @@
   "durable_objects": {
     "bindings": [
       { "name": "USER_SESSION_DO", "class_name": "UserSession" },
-      { "name": "COACH_AGENT_DO", "class_name": "CoachAgent" }
+      { "name": "CoachAgent", "class_name": "CoachAgent" }
     ]
   },
   "migrations": [

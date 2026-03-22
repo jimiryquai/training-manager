@@ -14,32 +14,11 @@ import {
   getUserBenchmarks,
   getTrainingMaxForExercise,
 } from '../../services/exerciseDictionary.service';
-import type { MovementCategory, ExerciseType, BenchmarkUnit } from '../../db/schema';
+import type { ExerciseType, BenchmarkUnit } from '../../db/schema';
 
-// Updated movement category schema with all 19+ categories
-const movementCategorySchema = z.enum([
-  'squat',
-  'hinge',
-  'push',
-  'pull',
-  'carry',
-  'core',
-  'cardio',
-  'horizontal_push',
-  'horizontal_pull',
-  'vertical_push',
-  'vertical_pull',
-  'unilateral_leg',
-  'bilateral_leg',
-  'core_flexion',
-  'core_rotation',
-  'core_antiextension',
-  'core_antilateral',
-  'conditioning',
-  'mobility',
-  'warmup',
-  'cooldown',
-]);
+// Flexible movement category schema - allows hybrid training modalities
+// Standard categories are suggested but not enforced
+const movementCategorySchema = z.string().min(1);
 
 const exerciseTypeSchema = z.enum(['dynamic', 'isometric', 'eccentric']);
 const benchmarkUnitSchema = z.enum(['kg', 'lbs', 'seconds', 'reps', 'meters']);
@@ -96,11 +75,11 @@ export const libraryRouter = router({
     .mutation(async ({ ctx, input }) => {
       // Only admin users can create system templates
       const tenantId = input.is_system_template ? null : ctx.tenantId;
-      
+
       return createExercise(ctx.db, {
         tenant_id: tenantId,
         name: input.name,
-        movement_category: input.movement_category as MovementCategory,
+        movement_category: input.movement_category,
         exercise_type: input.exercise_type as ExerciseType,
         benchmark_target: input.benchmark_target,
         conversion_factor: input.conversion_factor,
@@ -114,7 +93,7 @@ export const libraryRouter = router({
         id: input.id,
         tenant_id: ctx.tenantId,
         name: input.name,
-        movement_category: input.movement_category as MovementCategory | undefined,
+        movement_category: input.movement_category,
         exercise_type: input.exercise_type as ExerciseType | undefined,
         benchmark_target: input.benchmark_target,
         conversion_factor: input.conversion_factor,
@@ -135,7 +114,7 @@ export const libraryRouter = router({
     .query(async ({ ctx, input }) => {
       return getExercisesByCategory(ctx.db, {
         tenant_id: ctx.tenantId,
-        movement_category: input.movement_category as MovementCategory,
+        movement_category: input.movement_category,
       });
     }),
 

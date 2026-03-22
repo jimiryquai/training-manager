@@ -34,7 +34,7 @@ import type {
     UpdateDailyWellnessInput
 } from "../services/dailyWellness.service";
 import { libraryRouter } from "../trpc/routers/libraryRouter";
-import type { MovementCategory, ExerciseType } from "../db/schema";
+import type { ExerciseType } from "../db/schema";
 
 function getDb() {
     return new Kysely<Database>({
@@ -266,7 +266,7 @@ export async function test_library_addExercise(input: {
 
     return await caller.addExercise({
         name: input.name,
-        movement_category: input.movement_category as MovementCategory,
+        movement_category: input.movement_category,
         exercise_type: input.exercise_type as ExerciseType,
         benchmark_target: input.benchmark_target,
         conversion_factor: input.conversion_factor,
@@ -281,7 +281,7 @@ export async function test_library_getExercises(input: { tenant_id: string; move
         userId: 'test-user',
         db
     });
-    return await caller.getExercisesByCategory({ movement_category: input.movement_category as MovementCategory });
+    return await caller.getExercisesByCategory({ movement_category: input.movement_category });
 }
 
 export async function test_library_saveBenchmark(input: {

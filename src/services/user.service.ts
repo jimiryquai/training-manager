@@ -8,6 +8,7 @@ export interface CreateUserInput {
   external_auth_id?: string | null;
   role?: UserRole;
   is_active?: number;
+  display_name?: string | null;
 }
 
 export type UserRecord = {
@@ -17,6 +18,7 @@ export type UserRecord = {
   email: string;
   role: UserRole;
   is_active: number;
+  display_name: string | null;
 };
 
 export async function createUser(
@@ -35,6 +37,7 @@ export async function createUser(
       external_auth_id: input.external_auth_id ?? null,
       role: input.role ?? 'athlete',
       is_active: input.is_active ?? 1,
+      display_name: input.display_name ?? null,
       created_at: now,
       updated_at: now,
     })
@@ -126,6 +129,7 @@ export interface UpdateUserInput {
   external_auth_id?: string | null;
   role?: UserRole;
   is_active?: number;
+  display_name?: string | null;
 }
 
 export async function updateUser(
@@ -139,6 +143,7 @@ export async function updateUser(
   if (input.external_auth_id !== undefined) updates.external_auth_id = input.external_auth_id;
   if (input.role !== undefined) updates.role = input.role;
   if (input.is_active !== undefined) updates.is_active = input.is_active;
+  if (input.display_name !== undefined) updates.display_name = input.display_name;
 
   let query = db
     .updateTable('user')

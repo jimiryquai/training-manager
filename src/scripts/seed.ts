@@ -9,58 +9,139 @@ import {
   createWorkoutSession,
   createExercise,
   upsertUserBenchmark,
+  createTrainingPlan,
 } from '../services';
+import {
+  createTrainingSession,
+  createSessionExercise,
+} from '../services/trainingPlan.service';
+
+// Import the legacy data JSON
+import legacyData from '../../strength-card-data.json';
 
 const TENANT_ID = 'seed-tenant-001';
-const USER_ID = 'seed-user-001';
 
-function randomInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+// ============================================================================
+// Type definitions for legacy JSON structure
+// ============================================================================
+
+interface LegacyAthlete {
+  '#': number;
+  Name: string;
+  Active: string;
+  BW: number;
+  Squat?: number;
+  'Bench Press'?: number;
+  Deadlift?: number;
+  'Pull-Up'?: number | string;
+  Clean?: number | string;
 }
 
-function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+interface LegacyExercise {
+  Name: string;
+  Category: string;
+  '%': number;
+  'Related to': string;
+  '%BW used': number;
+  'Equipment used': string;
+  Rounding: number;
+  Note?: string;
+}
+
+interface LegacySetRepScheme {
+  '#'?: number;
+  'Set & Rep Scheme Name'?: string;
+  Category?: string;
+  Set?: string;
+  'Week 1'?: number | string;
+  '__EMPTY'?: number;
+  'Week 2'?: number | string;
+  '__EMPTY_1'?: number;
+  'Week 3'?: number | string;
+  '__EMPTY_2'?: number;
+  'Week 4'?: number | string;
+  '__EMPTY_3'?: number;
+}
+
+interface LegacyData {
+  Athletes: LegacyAthlete[];
+  Exercises: LegacyExercise[];
+  'Set & Reps Schemes': LegacySetRepScheme[];
+}
+
+// ============================================================================
+// Category mapping from legacy to movement_category values
+// ============================================================================
+
+const CATEGORY_MAP: Record<string, string> = {
+  'UB Horizontal Pull': 'horizontal_pull',
+  'UB Horizontal Push': 'horizontal_push',
+  'UB Vertical Pull': 'vertical_pull',
+  'UB Vertical Push': 'vertical_push',
+  'LB Push 1-Leg Accelerative': 'unilateral_leg',
+  'LB Push 1-Leg Deccelerative': 'unilateral_leg',
+  'LB Push 1-Leg Supported': 'unilateral_leg',
+  'LB Push 1-Leg Unsupported': 'unilateral_leg',
+  'LB Push 2-Leg': 'bilateral_leg',
+  'LB Pull 1-Leg Bent': 'unilateral_leg',
+  'LB Pull 1-Leg Straight': 'unilateral_leg',
+  'LB Pull 2-Leg Bent': 'hinge',
+  'LB Pull 2-Leg Straight': 'hinge',
+  'Core': 'core',
+  'Corrective': 'mobility',
+  'Explosive lift': 'conditioning',
+  'Isolation': 'horizontal_push',
+  'Olympic lift': 'conditioning',
+  'Rotational': 'core_rotation',
+};
+
+// Map benchmark target names to normalized names
+const BENCHMARK_TARGET_MAP: Record<string, string> = {
+  'Squat': 'Squat',
+  'squat': 'Squat',
+  'MP': 'Bench Press', // Military Press maps to Bench Press as upper body push
+  'Bench Press': 'Bench Press',
+  'Bench': 'Bench Press',
+  'BP': 'Bench Press',
+  'Deadlift': 'Deadlift',
+  'DL': 'Deadlift',
+  'Pull-Up': 'Pull-Up',
+  'Pull-up': 'Pull-Up',
+  'Pull Up': 'Pull-Up',
+  'PU': 'Pull-Up',
+  'Chin-Up': 'Pull-Up',
+  'Clean': 'Clean',
+};
+
+function getMovementCategory(legacyCategory: string): string {
+  return CATEGORY_MAP[legacyCategory] || 'mobility';
+}
+
+function getBenchmarkTarget(relatedTo: string): string | null {
+  if (!relatedTo) return null;
+  return BENCHMARK_TARGET_MAP[relatedTo] || relatedTo;
+}
+
+function parseNumberValue(value: number | string | undefined): number | null {
+  if (value === undefined || value === '' || value === null) return null;
+  if (typeof value === 'number') return value;
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? null : parsed;
 }
 
 /**
  * Insert records in batches to avoid D1 SQL variable limits
  * D1 has a limit on SQL variables per query, so we batch inserts
+ * CRITICAL: Use batch size of 5-10 to avoid "too many SQL variables" error
  */
-async function insertWellnessBatch(
-  db: Kysely<Database>,
-  records: Array<{
-    tenant_id: string;
-    user_id: string;
-    date: string;
-    rhr: number;
-    hrv_rmssd: number;
-  }>,
-  batchSize = 5
-) {
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize);
-    for (const record of batch) {
-      await createDailyWellness(db, record);
-    }
-  }
-}
-
-async function insertWorkoutBatch(
-  db: Kysely<Database>,
-  records: Array<{
-    tenant_id: string;
-    user_id: string;
-    date: string;
-    duration_minutes: number;
-    srpe: number;
-  }>,
-  batchSize = 5
-) {
-  for (let i = 0; i < records.length; i += batchSize) {
-    const batch = records.slice(i, i + batchSize);
-    for (const record of batch) {
-      await createWorkoutSession(db, record);
-    }
+async function insertBatch<T>(
+  items: T[],
+  batchSize: number,
+  inserter: (batch: T[]) => Promise<void>
+): Promise<void> {
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    await inserter(batch);
   }
 }
 
@@ -69,185 +150,358 @@ export default async function seed() {
     dialect: new D1Dialect({ database: env.DB }),
   });
 
-  const today = new Date();
+  const data = legacyData as LegacyData;
   
-  console.log(`🌱 Seeding Agent-Native Training Manager`);
-  console.log(`📅 Date range: 28 days ending ${formatDate(today)}`);
-  console.log('📋 Pattern: 3 base weeks + 1 "hell week" (overreaching)');
+  console.log(`🌱 Seeding Agent-Native Training Manager with Legacy Data`);
+  console.log(`📊 Found ${data.Athletes.length} athletes`);
+  console.log(`📚 Found ${data.Exercises.length} exercises`);
+  console.log(`📋 Found ${data['Set & Reps Schemes'].length} set/rep scheme rows`);
 
+  // ==========================================================================
+  // PHASE 1: Clear existing seed data
+  // ==========================================================================
   console.log('');
   console.log('🗑️  Clearing existing seed data...');
   
-  await db.deleteFrom('daily_wellness')
+  // Delete in reverse dependency order
+  await db.deleteFrom('session_exercise')
     .where('tenant_id', '=', TENANT_ID)
-    .where('user_id', '=', USER_ID)
     .execute();
-  
+
+  await db.deleteFrom('training_session')
+    .where('tenant_id', '=', TENANT_ID)
+    .execute();
+
+  await db.deleteFrom('training_plan')
+    .where('tenant_id', '=', TENANT_ID)
+    .execute();
+
+  // Clear global system training plans (tenant_id is null)
+  await db.deleteFrom('training_plan')
+    .where('tenant_id', 'is', null)
+    .where('is_system_template', '=', 1)
+    .execute();
+
   await db.deleteFrom('workout_session')
     .where('tenant_id', '=', TENANT_ID)
-    .where('user_id', '=', USER_ID)
+    .execute();
+
+  await db.deleteFrom('daily_wellness')
+    .where('tenant_id', '=', TENANT_ID)
     .execute();
 
   await db.deleteFrom('user_benchmarks')
     .where('tenant_id', '=', TENANT_ID)
-    .where('user_id', '=', USER_ID)
     .execute();
 
+  await db.deleteFrom('user')
+    .where('tenant_id', '=', TENANT_ID)
+    .execute();
+
+  // Clear tenant settings for this seed tenant
+  await db.deleteFrom('tenant_settings')
+    .where('tenant_id', '=', TENANT_ID)
+    .execute();
+
+  // Clear global system exercises (tenant_id is null)
+  await db.deleteFrom('exercise_dictionary')
+    .where('tenant_id', 'is', null)
+    .execute();
+
+  // ==========================================================================
+  // PHASE 2: Create tenant settings
+  // ==========================================================================
   console.log('🏢 Creating tenant settings...');
   await createTenantSettings(db, {
     tenant_id: TENANT_ID,
-    organization_name: 'Seed Organization',
+    organization_name: 'Legacy Data Import Organization',
     timezone: 'America/New_York',
     default_barbell_rounding: 2.5,
   });
 
-  console.log('👤 Creating user...');
-  await createUser(db, {
-    id: USER_ID,
-    tenant_id: TENANT_ID,
-    email: 'athlete@seed.local',
-    role: 'athlete',
-    is_active: 1,
+  // ==========================================================================
+  // PHASE 3: Map Athletes to User and UserBenchmark tables
+  // ==========================================================================
+  console.log('👤 Creating users from athletes...');
+  
+  const athleteToUserId: Record<string, string> = {};
+  
+  // Batch insert users (5 at a time to respect D1 limits)
+  const athletes = data.Athletes;
+  await insertBatch(athletes, 5, async (batch) => {
+    for (const athlete of batch) {
+      const userId = `athlete-${athlete['#']}`;
+      athleteToUserId[athlete.Name] = userId;
+      
+      const isActive = athlete.Active === 'Yes' ? 1 : 0;
+      
+      await createUser(db, {
+        id: userId,
+        tenant_id: TENANT_ID,
+        email: `${athlete.Name.toLowerCase().replace(/\s+/g, '.')}@legacy.local`,
+        display_name: athlete.Name,
+        role: 'athlete',
+        is_active: isActive,
+      });
+    }
   });
+  
+  console.log(`✅ Created ${athletes.length} users`);
 
+  // Create user benchmarks for each athlete
   console.log('🏋️  Creating user benchmarks...');
-  await upsertUserBenchmark(db, {
-    tenant_id: TENANT_ID,
-    user_id: USER_ID,
-    benchmark_name: 'Squat',
-    benchmark_value: 180,
-    benchmark_unit: 'kg',
-    training_max_percentage: 90,
-  });
-  await upsertUserBenchmark(db, {
-    tenant_id: TENANT_ID,
-    user_id: USER_ID,
-    benchmark_name: 'Deadlift',
-    benchmark_value: 220,
-    benchmark_unit: 'kg',
-    training_max_percentage: 90,
-  });
-  await upsertUserBenchmark(db, {
-    tenant_id: TENANT_ID,
-    user_id: USER_ID,
-    benchmark_name: 'Bench Press',
-    benchmark_value: 120,
-    benchmark_unit: 'kg',
-    training_max_percentage: 90,
-  });
-
-  console.log('📚 Creating system exercises...');
-  // Create some global system exercises
-  const exercises = [
-    { name: 'Barbell Squat', movement_category: 'squat' as const, exercise_type: 'dynamic' as const, benchmark_target: 'Squat' },
-    { name: 'Goblet Squat', movement_category: 'squat' as const, exercise_type: 'dynamic' as const, benchmark_target: 'Squat', conversion_factor: 0.5 },
-    { name: 'Barbell Deadlift', movement_category: 'hinge' as const, exercise_type: 'dynamic' as const, benchmark_target: 'Deadlift' },
-    { name: 'Barbell Bench Press', movement_category: 'push' as const, exercise_type: 'dynamic' as const, benchmark_target: 'Bench Press' },
-    { name: 'Pull-up', movement_category: 'pull' as const, exercise_type: 'dynamic' as const, benchmark_target: null },
-    { name: 'Farmer\'s Carry', movement_category: 'carry' as const, exercise_type: 'dynamic' as const, benchmark_target: null },
-    { name: 'Plank Hold', movement_category: 'core' as const, exercise_type: 'isometric' as const, benchmark_target: null },
-    { name: 'Rowing', movement_category: 'cardio' as const, exercise_type: 'dynamic' as const, benchmark_target: null },
+  
+  let benchmarkCount = 0;
+  const liftFields: Array<{ field: keyof LegacyAthlete; name: string; unit: 'kg' | 'reps' }> = [
+    { field: 'Squat', name: 'Squat', unit: 'kg' },
+    { field: 'Bench Press', name: 'Bench Press', unit: 'kg' },
+    { field: 'Deadlift', name: 'Deadlift', unit: 'kg' },
+    { field: 'Pull-Up', name: 'Pull-Up', unit: 'kg' },
+    { field: 'Clean', name: 'Clean', unit: 'kg' },
   ];
 
-  for (const exercise of exercises) {
-    await createExercise(db, {
-      tenant_id: null, // Global system template
-      ...exercise,
-    });
+  // Process benchmarks in small batches
+  const benchmarkItems: Array<{ athlete: LegacyAthlete; lift: typeof liftFields[0] }> = [];
+  for (const athlete of athletes) {
+    for (const lift of liftFields) {
+      const value = parseNumberValue(athlete[lift.field] as number | string | undefined);
+      if (value !== null && value > 0) {
+        benchmarkItems.push({ athlete, lift });
+      }
+    }
   }
 
-  console.log('💪 Inserting 28 days of wellness data...');
-  const wellnessRecords: Array<{
-    tenant_id: string;
-    user_id: string;
-    date: string;
-    rhr: number;
-    hrv_rmssd: number;
-  }> = [];
-  const workoutRecords: Array<{
-    tenant_id: string;
-    user_id: string;
-    date: string;
-    duration_minutes: number;
-    srpe: number;
-  }> = [];
-
-  for (let i = 27; i >= 0; i--) {
-    const date = new Date(today);
-    date.setDate(date.getDate() - i);
-    const dateStr = formatDate(date);
-    
-    const dayIndex = 27 - i;
-    const week = Math.floor(dayIndex / 7);
-    const dayOfWeek = dayIndex % 7;
-
-    let rhr = 48 + randomInt(0, 4);
-    let hrv_rmssd = 58 + randomInt(0, 9);
-
-    if (week === 3) {
-      rhr += 10 + randomInt(0, 4);
-      hrv_rmssd = Math.max(35, hrv_rmssd - 20 + randomInt(0, 5));
-    }
-    
-    wellnessRecords.push({
-      tenant_id: TENANT_ID,
-      user_id: USER_ID,
-      date: dateStr,
-      rhr,
-      hrv_rmssd,
-    });
-
-    let duration = 0;
-    let srpe = 0;
-
-    if (week < 3) {
-      // Base training weeks
-      switch (dayOfWeek) {
-        case 0: duration = 60; srpe = 4; break;
-        case 1: duration = 45; srpe = 6; break;
-        case 2: duration = 90; srpe = 3; break;
-        case 3: break; // Rest day
-        case 4: duration = 40; srpe = 8; break;
-        case 5: duration = 60; srpe = 7; break;
-        case 6: duration = 120; srpe = 4; break;
-      }
-    } else {
-      // Hell week (overreaching)
-      switch (dayOfWeek) {
-        case 0: duration = 90; srpe = 6; break;
-        case 1: duration = 60; srpe = 8; break;
-        case 2: duration = 120; srpe = 5; break;
-        case 3: duration = 45; srpe = 9; break;
-        case 4: duration = 60; srpe = 8; break;
-        case 5: duration = 90; srpe = 8; break;
-        case 6: duration = 150; srpe = 6; break;
-      }
-    }
-
-    if (duration > 0) {
-      workoutRecords.push({
+  await insertBatch(benchmarkItems, 5, async (batch) => {
+    for (const { athlete, lift } of batch) {
+      const userId = athleteToUserId[athlete.Name];
+      if (!userId) continue;
+      
+      const benchmarkValue = parseNumberValue(athlete[lift.field] as number | string | undefined);
+      await upsertUserBenchmark(db, {
         tenant_id: TENANT_ID,
-        user_id: USER_ID,
-        date: dateStr,
-        duration_minutes: duration,
-        srpe,
+        user_id: userId,
+        benchmark_name: lift.name,
+        benchmark_value: benchmarkValue,
+        benchmark_unit: lift.unit,
+        training_max_percentage: 90,
       });
+      benchmarkCount++;
+    }
+  });
+  
+  console.log(`✅ Created ${benchmarkCount} user benchmarks`);
+
+  // ==========================================================================
+  // PHASE 4: Map Exercises to ExerciseDictionary table (GLOBAL templates)
+  // ==========================================================================
+  console.log('📚 Creating global system exercises...');
+  
+  let exerciseCount = 0;
+  const exercises = data.Exercises;
+  
+  // Batch insert exercises (5 at a time to respect D1 limits)
+  await insertBatch(exercises, 5, async (batch) => {
+    for (const exercise of batch) {
+      if (!exercise.Name) continue;
+      
+      await createExercise(db, {
+        tenant_id: null, // NULL = Global System Template
+        name: exercise.Name,
+        movement_category: getMovementCategory(exercise.Category),
+        exercise_type: 'dynamic', // Default to dynamic
+        benchmark_target: getBenchmarkTarget(exercise['Related to']),
+        conversion_factor: exercise['%'] || null,
+      });
+      exerciseCount++;
+    }
+  });
+  
+  console.log(`✅ Created ${exerciseCount} global exercises`);
+
+  // ==========================================================================
+  // PHASE 5: Parse and map Set & Rep Schemes to periodization tables
+  // ==========================================================================
+  console.log('📋 Parsing set & rep schemes...');
+  
+  // Parse schemes into structured format
+  interface ParsedScheme {
+    name: string;
+    category: string;
+    sets: Array<{
+      setNumber: number;
+      weeks: Array<{
+        week: number;
+        percentage: number | null;
+        reps: number | null;
+      }>;
+    }>;
+  }
+  
+  const parsedSchemes: ParsedScheme[] = [];
+  const schemeRows = data['Set & Reps Schemes'];
+  
+  let currentScheme: ParsedScheme | null = null;
+  let currentSetNumber = 0;
+  
+  for (const row of schemeRows) {
+    // Check if this is a new scheme header
+    if (row['#'] !== undefined && row['Set & Rep Scheme Name']) {
+      // Save previous scheme
+      if (currentScheme) {
+        parsedSchemes.push(currentScheme);
+      }
+      
+      currentScheme = {
+        name: row['Set & Rep Scheme Name'],
+        category: row['Category'] || 'Unknown',
+        sets: [],
+      };
+      currentSetNumber = 0;
+    }
+    
+    // Parse set data
+    if (currentScheme && row.Set) {
+      const setMatch = row.Set.match(/Set (\d+)/);
+      if (setMatch) {
+        currentSetNumber = parseInt(setMatch[1]);
+        
+        const setData = {
+          setNumber: currentSetNumber,
+          weeks: [
+            {
+              week: 1,
+              percentage: typeof row['Week 1'] === 'number' ? row['Week 1'] : null,
+              reps: row['__EMPTY'] ?? null,
+            },
+            {
+              week: 2,
+              percentage: typeof row['Week 2'] === 'number' ? row['Week 2'] : null,
+              reps: row['__EMPTY_1'] ?? null,
+            },
+            {
+              week: 3,
+              percentage: typeof row['Week 3'] === 'number' ? row['Week 3'] : null,
+              reps: row['__EMPTY_2'] ?? null,
+            },
+            {
+              week: 4,
+              percentage: typeof row['Week 4'] === 'number' ? row['Week 4'] : null,
+              reps: row['__EMPTY_3'] ?? null,
+            },
+          ],
+        };
+        
+        currentScheme.sets.push(setData);
+      }
     }
   }
   
-  await insertWellnessBatch(db, wellnessRecords, 5);
-  await insertWorkoutBatch(db, workoutRecords, 5);
+  // Don't forget the last scheme
+  if (currentScheme) {
+    parsedSchemes.push(currentScheme);
+  }
+  
+  console.log(`✅ Parsed ${parsedSchemes.length} unique set/rep schemes`);
+  
+  // Create TrainingPlan entries for each scheme category
+  const categories = [...new Set(parsedSchemes.map(s => s.category))];
+  console.log(`📁 Found ${categories.length} scheme categories: ${categories.join(', ')}`);
+  
+  // Create a training plan for each category
+  const categoryToPlanId: Record<string, string> = {};
+  
+  for (const category of categories) {
+    const plan = await createTrainingPlan(db, {
+      tenant_id: null, // Global system template
+      name: `${category} Schemes`,
+      is_system_template: 1,
+    });
+    
+    if (plan) {
+      categoryToPlanId[category] = plan.id;
+    }
+  }
+  
+  console.log(`✅ Created ${categories.length} training plan templates`);
+  
+  // Create TrainingSession and SessionExercise entries for each scheme
+  let sessionCount = 0;
+  let exerciseRecordCount = 0;
+  
+  // Get all exercises to link them
+  const allExercises = await db.selectFrom('exercise_dictionary').selectAll().execute();
+  const exerciseMap: Record<string, string> = {};
+  allExercises.forEach(ex => {
+    exerciseMap[ex.name] = ex.id;
+  });
 
+  await insertBatch(parsedSchemes, 3, async (batch) => {
+    for (const scheme of batch) {
+      const planId = categoryToPlanId[scheme.category];
+      if (!planId) continue;
+      
+      // Try to find a matching exercise for this scheme name, or fallback to a category-standard one
+      let exerciseId = exerciseMap[scheme.name] || 
+                       allExercises.find(ex => ex.movement_category === getMovementCategory(scheme.category))?.id ||
+                       allExercises[0]?.id;
+
+      if (!exerciseId) continue;
+
+      // Create a session for weeks 1-4 of this scheme
+      for (let week = 1; week <= 4; week++) {
+        const session = await createTrainingSession(db, {
+          tenant_id: TENANT_ID,
+          plan_id: planId,
+          block_name: scheme.category,
+          week_number: week,
+          day_of_week: null,
+          session_name: `${scheme.name} - Week ${week}`,
+        });
+        
+        if (session) {
+          sessionCount++;
+
+          // Create session exercises for each set in this scheme for this week
+          // In the flattened Agent-Native model, we can group sets or have them individual.
+          // For the seed, we'll create one SessionExercise per set to show full flattening.
+          for (const set of scheme.sets) {
+            const weekData = set.weeks.find(w => w.week === week);
+            if (!weekData || (weekData.reps === null && weekData.percentage === null)) continue;
+
+            await createSessionExercise(db, {
+              tenant_id: TENANT_ID,
+              session_id: session.id,
+              exercise_dictionary_id: exerciseId,
+              order_in_session: set.setNumber,
+              scheme_name: scheme.name,
+              target_sets: 1, // Individual set record
+              target_reps: weekData.reps?.toString() || null,
+              target_intensity: weekData.percentage || null,
+              coach_notes: `Set ${set.setNumber} for ${scheme.name}`,
+            });
+            exerciseRecordCount++;
+          }
+        }
+      }
+    }
+  });
+  
+  console.log(`✅ Created ${sessionCount} training sessions`);
+  console.log(`✅ Created ${exerciseRecordCount} session exercises (flattened metrics)`);
+
+  // ==========================================================================
+  // PHASE 6: Summary
+  // ==========================================================================
   console.log('');
-  console.log('✅ Seed complete!');
+  console.log('✅ Legacy data seed complete!');
   console.log('');
   console.log('📊 Summary:');
   console.log(`   - 1 tenant (id: ${TENANT_ID})`);
-  console.log(`   - 1 user (id: ${USER_ID})`);
-  console.log(`   - 28 daily wellness records`);
-  console.log(`   - ${workoutRecords.length} workout sessions`);
-  console.log(`   - 3 user benchmarks (Squat, Deadlift, Bench)`);
-  console.log(`   - ${exercises.length} system exercises`);
-  console.log(`   - Weeks 1-3: Base training (ACWR ~1.0-1.2)`);
-  console.log(`   - Week 4: Overreaching block (ACWR should spike >1.5)`);
+  console.log(`   - ${athletes.length} users (athletes)`);
+  console.log(`   - ${benchmarkCount} user benchmarks`);
+  console.log(`   - ${exerciseCount} global system exercises`);
+  console.log(`   - ${categories.length} training plan templates`);
+  console.log(`   - ${sessionCount} training sessions`);
+  console.log(`   - ${exerciseRecordCount} session exercises (flattened)`);
+  console.log(`   - ${parsedSchemes.length} unique set/rep schemes parsed`);
 }

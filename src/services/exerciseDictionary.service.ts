@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { Database, MovementCategory, ExerciseType, BenchmarkUnit, UserBenchmarkTable } from '../db/schema';
+import type { Database, ExerciseType, BenchmarkUnit, UserBenchmarkTable } from '../db/schema';
 
 // ============================================================================
 // Exercise Dictionary Service
@@ -8,7 +8,7 @@ import type { Database, MovementCategory, ExerciseType, BenchmarkUnit, UserBench
 export interface CreateExerciseInput {
   tenant_id: string | null; // NULL for global system templates
   name: string;
-  movement_category: MovementCategory;
+  movement_category: string;
   exercise_type: ExerciseType;
   benchmark_target?: string | null;
   conversion_factor?: number | null;
@@ -18,7 +18,7 @@ export interface ExerciseDictionaryRecord {
   id: string;
   tenant_id: string | null;
   name: string;
-  movement_category: MovementCategory;
+  movement_category: string;
   exercise_type: ExerciseType;
   benchmark_target: string | null;
   conversion_factor: number | null;
@@ -52,7 +52,7 @@ export async function createExercise(
 
 export interface GetExercisesByCategoryInput {
   tenant_id: string | null;
-  movement_category: MovementCategory;
+  movement_category: string;
 }
 
 /**
@@ -155,7 +155,7 @@ export interface UpdateExerciseInput {
   id: string;
   tenant_id: string | null;
   name?: string;
-  movement_category?: MovementCategory;
+  movement_category?: string;
   exercise_type?: ExerciseType;
   benchmark_target?: string | null;
   conversion_factor?: number | null;

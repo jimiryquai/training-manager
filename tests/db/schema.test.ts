@@ -1,32 +1,11 @@
 import { describe, it, expectTypeOf } from 'vitest';
-import type { Database, MovementCategory, ExerciseType, BenchmarkUnit } from '../../src/db/schema';
+import type { Database, ExerciseType, BenchmarkUnit } from '../../src/db/schema';
 
 describe('Database Schema Types', () => {
-  it('should have correct MovementCategory types', () => {
-    type ExpectedMovementCategory =
-      | 'squat'
-      | 'hinge'
-      | 'push'
-      | 'pull'
-      | 'carry'
-      | 'core'
-      | 'cardio'
-      | 'horizontal_push'
-      | 'horizontal_pull'
-      | 'vertical_push'
-      | 'vertical_pull'
-      | 'unilateral_leg'
-      | 'bilateral_leg'
-      | 'core_flexion'
-      | 'core_rotation'
-      | 'core_antiextension'
-      | 'core_antilateral'
-      | 'conditioning'
-      | 'mobility'
-      | 'warmup'
-      | 'cooldown';
-    
-    expectTypeOf<MovementCategory>().toEqualTypeOf<ExpectedMovementCategory>();
+  it('should have movement_category as flexible string for hybrid modalities', () => {
+    // MovementCategory is now a string to support flexible, hybrid training modalities
+    // Standard categories are still supported but not enforced at the database level
+    expectTypeOf<Database['exercise_dictionary']['movement_category']>().toBeString();
   });
 
   it('should have correct ExerciseType types', () => {

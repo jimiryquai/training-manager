@@ -448,9 +448,14 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
     `.reverse();
 
     // Choose model based on available keys (OpenAI premium, Workers AI default)
-    const model = this.env.OPENAI_API_KEY
+    // Check for valid OpenAI key (starts with sk- and has more than 10 chars)
+    const hasValidOpenAIKey = this.env.OPENAI_API_KEY && 
+      this.env.OPENAI_API_KEY.startsWith('sk-') && 
+      this.env.OPENAI_API_KEY.length > 10;
+    
+    const model = hasValidOpenAIKey
       ? openai('gpt-4o-mini')
-      : createWorkersAI({ binding: this.env.AI })('@cf/meta/llama-3.1-8b-instruct');
+      : createWorkersAI({ binding: this.env.AI })('@cf/meta/llama-3.3-70b-instruct-fp8-fast');
 
     // Build context with persona
     const systemPrompt = this.getPersonaPrompt();
@@ -483,7 +488,7 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
       connection.send(JSON.stringify({
         type: 'error',
         code: 'AI_ERROR',
-        message: 'Failed to generate response',
+        message: error instanceof Error ? error.message : 'Failed to generate response',
       }));
     }
   }

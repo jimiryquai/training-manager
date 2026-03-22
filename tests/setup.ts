@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS user (
   email TEXT NOT NULL UNIQUE,
   tenant_id TEXT NOT NULL,
   external_auth_id TEXT,
+  display_name TEXT,
   role TEXT NOT NULL DEFAULT 'athlete' CHECK (role IN ('athlete', 'admin')),
   is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -16,6 +17,7 @@ CREATE TABLE IF NOT EXISTS user (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_external_auth_id ON user(external_auth_id);
 CREATE INDEX IF NOT EXISTS idx_user_tenant ON user(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_user_display_name ON user(display_name);
 
 -- Tenant Settings table
 CREATE TABLE IF NOT EXISTS tenant_settings (
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS daily_wellness (
   date TEXT NOT NULL,
   rhr REAL NOT NULL,
   hrv_rmssd REAL NOT NULL,
+  body_weight REAL,
   sleep_score INTEGER CHECK(sleep_score IS NULL OR (sleep_score >= 1 AND sleep_score <= 5)),
   fatigue_score INTEGER CHECK(fatigue_score IS NULL OR (fatigue_score >= 1 AND fatigue_score <= 5)),
   muscle_soreness_score INTEGER CHECK(muscle_soreness_score IS NULL OR (muscle_soreness_score >= 1 AND muscle_soreness_score <= 5)),
@@ -74,22 +77,21 @@ CREATE TABLE IF NOT EXISTS exercise_dictionary (
   id TEXT PRIMARY KEY,
   tenant_id TEXT,
   name TEXT NOT NULL,
-  movement_category TEXT NOT NULL CHECK (movement_category IN (
-    'squat', 'hinge', 'push', 'pull', 'carry', 'core', 'cardio',
-    'horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull',
-    'unilateral_leg', 'bilateral_leg', 'core_flexion', 'core_rotation',
-    'core_antiextension', 'core_antilateral', 'conditioning',
-    'mobility', 'warmup', 'cooldown'
-  )),
+  movement_category TEXT NOT NULL,
   exercise_type TEXT NOT NULL DEFAULT 'dynamic' CHECK (exercise_type IN ('dynamic', 'isometric', 'eccentric')),
   benchmark_target TEXT,
   conversion_factor REAL,
+  percent_bodyweight_used REAL NOT NULL DEFAULT 0,
+  equipment_type TEXT,
+  rounding_increment REAL NOT NULL DEFAULT 2.5,
+  notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_exercise_dictionary_tenant ON exercise_dictionary(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_exercise_dictionary_benchmark_target ON exercise_dictionary(benchmark_target);
+CREATE INDEX IF NOT EXISTS idx_exercise_dictionary_category ON exercise_dictionary(movement_category);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_exercise_dictionary_tenant_name ON exercise_dictionary(tenant_id, name);
 
 -- User Benchmarks table
@@ -150,6 +152,12 @@ CREATE TABLE IF NOT EXISTS session_exercise (
   circuit_group TEXT,
   order_in_session INTEGER NOT NULL,
   scheme_name TEXT,
+  target_sets INTEGER,
+  target_reps TEXT,
+  target_intensity REAL,
+  target_rpe REAL,
+  target_tempo TEXT,
+  target_rest_seconds INTEGER,
   coach_notes TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),

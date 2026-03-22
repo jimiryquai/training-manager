@@ -12,6 +12,11 @@ erDiagram
     TrainingSession ||--o{ SessionExercise : "prescribes"
     TrainingSession ||--o| WorkoutSession : "fulfilled by (Adherence)"
 
+    %% Set & Rep Scheme Relationships
+    SessionExercise }o--o| SetRepScheme : "prescribed by"
+    SetRepScheme ||--|{ SetRepSet : "contains"
+    SetRepSet ||--|{ SetRepProgression : "defines weekly"
+
     TenantSettings {
         string tenant_id PK
         string organization_name
@@ -23,6 +28,8 @@ erDiagram
         string id PK
         string tenant_id FK "For top-level data isolation"
         string external_auth_id "For RedwoodSDK Passkeys"
+        string display_name "Athlete Name"
+        string group_name "Cohort/Team"
         string role "'athlete' (AI handles coaching)"
         boolean is_active
     }
@@ -32,6 +39,7 @@ erDiagram
         string tenant_id FK
         string user_id FK
         date date
+        float body_weight "NEW - Tracked daily"
         int rhr "Resting Heart Rate"
         int hrv_rmssd "Heart rate variability"
         int sleep_score "1-5 Subjective slider"
@@ -61,6 +69,35 @@ erDiagram
         string exercise_type "'dynamic', 'isometric', 'eccentric'"
         string benchmark_target "e.g., 'Squat' - Links to UserBenchmark"
         float conversion_factor "e.g., 0.70"
+        float percent_bodyweight_used "For relative volume"
+        string equipment_type "Barbell, Dumbells, etc."
+        float rounding_increment "Override tenant default"
+        string notes "Coach instructions"
+    }
+
+    SetRepScheme {
+        string id PK
+        string tenant_id FK
+        string name "e.g., 'Constant Plateau 4x12'"
+        string category "Hypertrophy, Strength, etc."
+        string progression_type "Pattern: linear, wave, etc."
+        int total_sets
+        int total_weeks
+    }
+
+    SetRepSet {
+        string id PK
+        string scheme_id FK
+        int set_number "Order: 1, 2, 3..."
+        boolean is_warmup
+    }
+
+    SetRepProgression {
+        string id PK
+        string set_id FK
+        int week_number "1-4"
+        float percentage "Intensity: e.g., 0.65"
+        int reps "Target Volume"
     }
 
     TrainingPlan {
@@ -85,9 +122,9 @@ erDiagram
         string tenant_id FK
         string session_id FK
         string exercise_dictionary_id FK
+        string set_rep_scheme_id FK "Primary link to Intelligence"
         string circuit_group "Groups supersets (e.g., 'A', 'Warmup')"
         int order_in_session "1, 2, 3..."
-        string scheme_name "e.g., 'Constant Wave 2x8/6/4'"
         string coach_notes "e.g., 'Hip flexor stretch'"
     }
 
@@ -104,4 +141,5 @@ erDiagram
         int srpe
         float training_load
     }
+
 ```

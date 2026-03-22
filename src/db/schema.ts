@@ -18,30 +18,15 @@ export type DataSource = 'apple_health' | 'manual_slider' | 'agent_voice';
 
 /**
  * Movement categories for exercise classification
- * Matches the Settings Tab enum from the 19 Settings configuration
+ * NOTE: Changed from strict enum to flexible string to support hybrid training modalities
+ * Previous enum values are still supported as standard conventions
  */
-export type MovementCategory =
-  | 'squat'
-  | 'hinge'
-  | 'push'
-  | 'pull'
-  | 'carry'
-  | 'core'
-  | 'cardio'
-  | 'horizontal_push'
-  | 'horizontal_pull'
-  | 'vertical_push'
-  | 'vertical_pull'
-  | 'unilateral_leg'
-  | 'bilateral_leg'
-  | 'core_flexion'
-  | 'core_rotation'
-  | 'core_antiextension'
-  | 'core_antilateral'
-  | 'conditioning'
-  | 'mobility'
-  | 'warmup'
-  | 'cooldown';
+// Legacy enum values for reference (no longer enforced at database level):
+// 'squat', 'hinge', 'push', 'pull', 'carry', 'core', 'cardio',
+// 'horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull',
+// 'unilateral_leg', 'bilateral_leg', 'core_flexion', 'core_rotation',
+// 'core_antiextension', 'core_antilateral', 'conditioning',
+// 'mobility', 'warmup', 'cooldown'
 
 /**
  * Exercise type for determining how the exercise is performed
@@ -79,6 +64,7 @@ export interface UserTable {
   email: string;
   role: UserRole;
   is_active: Generated<number>; // SQLite boolean: 0 or 1
+  display_name: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -102,6 +88,7 @@ export interface DailyWellnessTable {
   muscle_soreness_score: number | null;
   stress_score: number | null;
   fatigue_score: number | null;
+  body_weight: number | null;
   // Audit trail for data entry method
   data_source: Generated<DataSource>;
   created_at: Generated<string>;
@@ -132,10 +119,14 @@ export interface ExerciseDictionaryTable {
   id: Generated<string>;
   tenant_id: string | null; // NULL for global system templates
   name: string;
-  movement_category: MovementCategory;
+  movement_category: string; // Flexible string to support hybrid training modalities
   exercise_type: ExerciseType;
   benchmark_target: string | null; // Links to UserBenchmark.benchmark_name
   conversion_factor: number | null; // e.g., 0.70 for Goblet Squat -> Squat
+  percent_bodyweight_used: number;
+  equipment_type: string | null;
+  rounding_increment: number;
+  notes: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -181,6 +172,12 @@ export interface SessionExerciseTable {
   circuit_group: string | null; // Groups supersets: 'A', 'B', 'Warmup'
   order_in_session: number;
   scheme_name: string | null; // e.g., 'Constant Wave 2x8/6/4'
+  target_sets: number | null;
+  target_reps: string | null;
+  target_intensity: number | null;
+  target_rpe: number | null;
+  target_tempo: string | null;
+  target_rest_seconds: number | null;
   coach_notes: string | null; // AI or coach instructions
   created_at: Generated<string>;
   updated_at: Generated<string>;
