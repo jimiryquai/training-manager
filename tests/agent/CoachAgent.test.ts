@@ -887,36 +887,6 @@ describe('CoachAgent', () => {
   });
 
   // ==========================================================================
-  // AI Error Handling
-  // ==========================================================================
-
-  describe('AI Error Handling', () => {
-    it('should have proper error response structure for AI failures', () => {
-      // Verify the expected error response format matches what handleChatMessage sends
-      const expectedErrorStructure = {
-        type: 'error',
-        code: 'AI_ERROR',
-        message: 'Failed to generate response',
-      };
-
-      expect(expectedErrorStructure.type).toBe('error');
-      expect(expectedErrorStructure.code).toBe('AI_ERROR');
-    });
-
-    it('should handle rate limiting gracefully (error code pattern)', () => {
-      // Verify error code patterns for different AI failures
-      const knownErrorCodes = [
-        'AI_ERROR',
-        'PROCESSING_ERROR',
-        'UNAUTHORIZED',
-        'UNKNOWN_MESSAGE_TYPE',
-      ];
-
-      expect(knownErrorCodes).toContain('AI_ERROR');
-    });
-  });
-
-  // ==========================================================================
   // Session Validation Security Tests
   // ==========================================================================
 
