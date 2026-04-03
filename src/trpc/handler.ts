@@ -4,18 +4,23 @@ import { createTRPCContext, type SessionStore, type SessionData } from './contex
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST',
-  'Access-Control-Allow-Headers': 'Content-Type',
-};
-
 export interface CreateHandlerOptions {
   sessionStore: SessionStore;
   db: Kysely<Database>;
+  allowedOrigin?: string;
+}
+
+function getCorsHeaders(allowedOrigin: string): Record<string, string> {
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST',
+    'Access-Control-Allow-Headers': 'Content-Type',
+  };
 }
 
 export function createTRPCHandler(opts: CreateHandlerOptions) {
+  const corsHeaders = getCorsHeaders(opts.allowedOrigin ?? '*');
+
   return async (request: Request, session?: SessionData) => {
     // Handle OPTIONS preflight
     if (request.method === 'OPTIONS') {
@@ -32,6 +37,7 @@ export function createTRPCHandler(opts: CreateHandlerOptions) {
             session,
             tenantId: session.tenantId,
             userId: session.userId,
+            role: session.role,
             db: opts.db,
           };
         }

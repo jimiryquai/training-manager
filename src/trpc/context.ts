@@ -1,9 +1,10 @@
 import type { Kysely } from 'kysely';
-import type { Database } from '../db/schema';
+import type { Database, UserRole } from '../db/schema';
 
 export interface SessionData {
   userId: string;
   tenantId: string;
+  role: UserRole;
 }
 
 export interface SessionStore {
@@ -20,6 +21,7 @@ export interface TRPCContext {
   session: SessionData | null;
   tenantId: string | null;
   userId: string | null;
+  role: UserRole | null;
   db: Kysely<Database>;
 }
 
@@ -32,6 +34,7 @@ export async function createTRPCContext(opts: CreateContextOptions): Promise<TRP
     session,
     tenantId: session?.tenantId ?? null,
     userId: session?.userId ?? null,
+    role: session?.role ?? null,
     db: opts.db,
   };
 }

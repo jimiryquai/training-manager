@@ -33,6 +33,7 @@ export type Env = {
   USER_SESSION_DO: DurableObjectNamespace;
   CoachAgent: DurableObjectNamespace;
   OPENAI_API_KEY?: string;
+  ALLOWED_ORIGIN?: string;
 };
 
 export type AppContext = {
@@ -58,6 +59,7 @@ function getDb() {
 const trpcHandler = createTRPCHandler({
   sessionStore,
   db: getDb(),
+  allowedOrigin: env.ALLOWED_ORIGIN,
 });
 
 export default defineApp([
@@ -75,6 +77,7 @@ export default defineApp([
         ctx.session = {
           userId: "seed-user-001",
           tenantId: "seed-tenant-001",
+          role: "admin", // Dev bypass assumes admin role
         };
       }
     }

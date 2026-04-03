@@ -1,6 +1,9 @@
+import type { UserRole } from '../db/schema';
+
 export interface SessionData {
   userId: string;
   tenantId: string;
+  role: UserRole;
 }
 
 export class UserSession implements DurableObject {

@@ -46,7 +46,7 @@ import type {
 } from "../services/dailyWellness.service";
 import { libraryRouter } from "../trpc/routers/libraryRouter";
 import { trainingSessionRouter } from "../trpc/routers/trainingSessionRouter";
-import type { ExerciseType } from "../db/schema";
+import type { ExerciseType, UserRole } from "../db/schema";
 
 function getDb() {
     return new Kysely<Database>({
@@ -331,9 +331,10 @@ export async function test_library_addExercise(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
 
@@ -349,9 +350,10 @@ export async function test_library_addExercise(input: {
 export async function test_library_getExercises(input: { tenant_id: string; movement_category: string; }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getExercisesByCategory({ movement_category: input.movement_category });
@@ -366,9 +368,10 @@ export async function test_library_saveBenchmark(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.saveUserBenchmark({
@@ -390,9 +393,10 @@ export async function test_library_updateExercise(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.updateExercise({
@@ -411,9 +415,10 @@ export async function test_library_deleteExercise(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.deleteExercise({ id: input.id });
@@ -425,9 +430,10 @@ export async function test_library_getExercisesByBenchmark(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getExercisesByBenchmark({ benchmark_target: input.benchmark_target });
@@ -436,9 +442,10 @@ export async function test_library_getExercisesByBenchmark(input: {
 export async function test_library_getSystemExercises(input: { tenant_id: string }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getSystemExercises();
@@ -450,9 +457,10 @@ export async function test_library_getUserBenchmark(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getUserBenchmark({ benchmark_name: input.benchmark_name });
@@ -461,9 +469,10 @@ export async function test_library_getUserBenchmark(input: {
 export async function test_library_getUserBenchmarks(input: { tenant_id: string }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getUserBenchmarks();
@@ -475,9 +484,10 @@ export async function test_library_getTrainingMaxForExercise(input: {
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
-        session: { userId: 'test-user', tenantId: input.tenant_id },
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: 'test-user',
+        role: 'athlete',
         db
     });
     return await caller.getTrainingMaxForExercise({ exercise_id: input.exercise_id });
@@ -1244,12 +1254,13 @@ export function test_extractSessionId(cookieHeader: string): string | null {
 // Training Session Router Test Utilities
 // ============================================================================
 
-function createSessionCaller(tenantId: string, userId: string = 'test-user') {
+function createSessionCaller(tenantId: string, userId: string = 'test-user', role: UserRole = 'athlete') {
     const db = getDb();
     return trainingSessionRouter.createCaller({
-        session: { userId, tenantId },
+        session: { userId, tenantId, role },
         tenantId,
         userId,
+        role,
         db,
     });
 }
@@ -1377,7 +1388,7 @@ export async function test_ts_deleteExercise(input: { tenant_id: string; id: str
 // CORS Test Utilities (for tRPC handler)
 // ============================================================================
 
-const CORS_HEADERS = {
+const DEFAULT_CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -1386,12 +1397,11 @@ const CORS_HEADERS = {
 /**
  * Test OPTIONS preflight request to verify CORS headers
  */
-export async function test_corsOptionsPreflight(): Promise<{
+export async function test_corsOptionsPreflight(input?: { allowedOrigin?: string }): Promise<{
     status: number;
     headers: Record<string, string>;
 }> {
     const { createTRPCHandler } = await import('../trpc/handler');
-    const { env } = await import('cloudflare:workers');
     
     const db = getDb();
     const mockSessionStore = {
@@ -1401,6 +1411,7 @@ export async function test_corsOptionsPreflight(): Promise<{
     const handler = createTRPCHandler({
         sessionStore: mockSessionStore as any,
         db,
+        allowedOrigin: input?.allowedOrigin,
     });
     
     const request = new Request('http://localhost/trpc/test', {
@@ -1426,6 +1437,7 @@ export async function test_corsOptionsPreflight(): Promise<{
 export async function test_corsPostRequest(input: {
     body: string;
     contentType?: string;
+    allowedOrigin?: string;
 }): Promise<{
     status: number;
     headers: Record<string, string>;
@@ -1440,6 +1452,7 @@ export async function test_corsPostRequest(input: {
     const handler = createTRPCHandler({
         sessionStore: mockSessionStore as any,
         db,
+        allowedOrigin: input.allowedOrigin,
     });
     
     const request = new Request('http://localhost/trpc/healthcheck', {
@@ -1466,25 +1479,26 @@ export async function test_corsPostRequest(input: {
 /**
  * Verify CORS headers are present and correct
  */
-export function test_verifyCORSHeaders(headers: Record<string, string>): {
+export function test_verifyCORSHeaders(headers: Record<string, string>, expected?: Record<string, string>): {
     valid: boolean;
     errors: string[];
 } {
+    const expectedHeaders = expected ?? DEFAULT_CORS_HEADERS;
     const errors: string[] = [];
     
     // Check Access-Control-Allow-Origin
-    if (headers['access-control-allow-origin'] !== CORS_HEADERS['Access-Control-Allow-Origin']) {
-        errors.push(`Expected Access-Control-Allow-Origin '${CORS_HEADERS['Access-Control-Allow-Origin']}', got '${headers['access-control-allow-origin']}'`);
+    if (headers['access-control-allow-origin'] !== expectedHeaders['Access-Control-Allow-Origin']) {
+        errors.push(`Expected Access-Control-Allow-Origin '${expectedHeaders['Access-Control-Allow-Origin']}', got '${headers['access-control-allow-origin']}'`);
     }
     
     // Check Access-Control-Allow-Methods
-    if (headers['access-control-allow-methods'] !== CORS_HEADERS['Access-Control-Allow-Methods']) {
-        errors.push(`Expected Access-Control-Allow-Methods '${CORS_HEADERS['Access-Control-Allow-Methods']}', got '${headers['access-control-allow-methods']}'`);
+    if (headers['access-control-allow-methods'] !== expectedHeaders['Access-Control-Allow-Methods']) {
+        errors.push(`Expected Access-Control-Allow-Methods '${expectedHeaders['Access-Control-Allow-Methods']}', got '${headers['access-control-allow-methods']}'`);
     }
     
     // Check Access-Control-Allow-Headers
-    if (headers['access-control-allow-headers'] !== CORS_HEADERS['Access-Control-Allow-Headers']) {
-        errors.push(`Expected Access-Control-Allow-Headers '${CORS_HEADERS['Access-Control-Allow-Headers']}', got '${headers['access-control-allow-headers']}'`);
+    if (headers['access-control-allow-headers'] !== expectedHeaders['Access-Control-Allow-Headers']) {
+        errors.push(`Expected Access-Control-Allow-Headers '${expectedHeaders['Access-Control-Allow-Headers']}', got '${headers['access-control-allow-headers']}'`);
     }
     
     return {
@@ -1497,7 +1511,19 @@ export function test_verifyCORSHeaders(headers: Record<string, string>): {
  * Get expected CORS headers for comparison
  */
 export function test_getExpectedCORSHeaders(): Record<string, string> {
-    return { ...CORS_HEADERS };
+    return { ...DEFAULT_CORS_HEADERS };
+}
+
+/**
+ * Test OPTIONS preflight with a custom origin to verify configurable CORS
+ */
+export async function test_corsOptionsPreflightWithCustomOrigin(input: {
+    allowedOrigin: string;
+}): Promise<{
+    status: number;
+    headers: Record<string, string>;
+}> {
+    return test_corsOptionsPreflight({ allowedOrigin: input.allowedOrigin });
 }
 
 // ============================================================================
@@ -1505,16 +1531,18 @@ export function test_getExpectedCORSHeaders(): Record<string, string> {
 // ============================================================================
 
 import { trainingPlanRouter } from '../trpc/routers/trainingPlanRouter';
+import type { UserRole } from '../db/schema';
 
 /**
  * Create a caller for the training plan router with proper context
  */
-function createTrainingPlanCaller(tenantId: string, userId: string = 'test-user') {
+function createTrainingPlanCaller(tenantId: string, userId: string = 'test-user', role: UserRole = 'athlete') {
     const db = getDb();
     return trainingPlanRouter.createCaller({
-        session: { userId, tenantId },
+        session: { userId, tenantId, role },
         tenantId,
         userId,
+        role,
         db,
     });
 }
@@ -1602,9 +1630,10 @@ export async function test_w_logDailyMetrics(input: {
     const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
     const db = getDb();
     const caller = wellnessRouter.createCaller({
-        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: WELLNESS_TEST_USER,
+        role: 'athlete',
         db,
     });
     return await caller.logDailyMetrics(input);
@@ -1617,9 +1646,10 @@ export async function test_w_getMetricsByDate(input: {
     const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
     const db = getDb();
     const caller = wellnessRouter.createCaller({
-        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: WELLNESS_TEST_USER,
+        role: 'athlete',
         db,
     });
     return await caller.getMetricsByDate({ date: input.date });
@@ -1633,9 +1663,10 @@ export async function test_w_getMetricsByDateRange(input: {
     const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
     const db = getDb();
     const caller = wellnessRouter.createCaller({
-        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: WELLNESS_TEST_USER,
+        role: 'athlete',
         db,
     });
     return await caller.getMetricsByDateRange({
@@ -1659,10 +1690,269 @@ export async function test_w_logDailyMetricsViaAgent(input: {
     const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
     const db = getDb();
     const caller = wellnessRouter.createCaller({
-        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
         tenantId: input.tenant_id,
         userId: WELLNESS_TEST_USER,
+        role: 'athlete',
         db,
     });
     return await caller.logDailyMetricsViaAgent(input);
+}
+
+// ============================================================================
+// Security Test Utilities - Role-based Authorization Tests
+// ============================================================================
+
+/**
+ * Test helper for library router with explicit role
+ */
+export async function test_library_addExerciseWithRole(input: {
+    tenant_id: string;
+    name: string;
+    movement_category: string;
+    exercise_type: string;
+    benchmark_target?: string;
+    conversion_factor?: number;
+    is_system_template?: boolean;
+    role: UserRole;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id, role: input.role },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        role: input.role,
+        db,
+    });
+
+    return await caller.addExercise({
+        name: input.name,
+        movement_category: input.movement_category,
+        exercise_type: input.exercise_type as ExerciseType,
+        benchmark_target: input.benchmark_target,
+        conversion_factor: input.conversion_factor,
+        is_system_template: input.is_system_template,
+    });
+}
+
+/**
+ * Test helper for training plan router with explicit role
+ */
+export async function test_tp_createPlanWithRole(input: {
+    tenant_id: string;
+    name: string;
+    is_system_template?: boolean;
+    role: UserRole;
+}) {
+    const caller = createTrainingPlanCaller(input.tenant_id, 'test-user', input.role);
+    return await caller.createPlan({
+        name: input.name,
+        is_system_template: input.is_system_template,
+    });
+}
+
+// ============================================================================
+// Training Router Test Utilities (Workout Sessions)
+// ============================================================================
+
+const TRAINING_TEST_USER = 'training-test-user';
+
+/**
+ * Log a workout session (manual entry)
+ */
+export async function test_tr_logSession(input: {
+    tenant_id: string;
+    date: string;
+    duration_minutes: number;
+    srpe: number;
+    planned_session_id?: string;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.logSession({
+        date: input.date,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        planned_session_id: input.planned_session_id,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Update a workout session
+ */
+export async function test_tr_updateSession(input: {
+    tenant_id: string;
+    id: string;
+    duration_minutes?: number;
+    srpe?: number;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.updateSession({
+        id: input.id,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Get a workout session by ID
+ */
+export async function test_tr_getSession(input: {
+    tenant_id: string;
+    id: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getSession({ id: input.id });
+}
+
+/**
+ * Get workout sessions by date range
+ */
+export async function test_tr_getSessionsByDateRange(input: {
+    tenant_id: string;
+    start_date: string;
+    end_date: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getSessionsByDateRange({
+        start_date: input.start_date,
+        end_date: input.end_date,
+    });
+}
+
+/**
+ * Get ACWR status for a date
+ */
+export async function test_tr_getACWRStatus(input: {
+    tenant_id: string;
+    date: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getACWRStatus({ date: input.date });
+}
+
+/**
+ * Log a workout session via AI agent (voice entry)
+ */
+export async function test_tr_logSessionViaAgent(input: {
+    tenant_id: string;
+    date: string;
+    duration_minutes: number;
+    srpe: number;
+    agent_reasoning: string;
+    planned_session_id?: string;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.logSessionViaAgent({
+        date: input.date,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        agent_reasoning: input.agent_reasoning,
+        planned_session_id: input.planned_session_id,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Mark an existing session as a voice entry with modifications
+ */
+export async function test_tr_markAsVoiceEntry(input: {
+    tenant_id: string;
+    id: string;
+    agent_reasoning: string;
+    modifications: Record<string, unknown>;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.markAsVoiceEntry({
+        id: input.id,
+        agent_reasoning: input.agent_reasoning,
+        modifications: input.modifications,
+    });
+}
+
+// ============================================================================
+// Dashboard Router Test Utilities
+// ============================================================================
+
+/**
+ * Get readiness view data from dashboard
+ */
+export async function test_dash_getReadinessView(input: {
+    tenant_id: string;
+    date: string;
+    history_days?: number;
+}) {
+    const { dashboardRouter } = await import('../fate/dashboardRouter');
+    const db = getDb();
+    const caller = dashboardRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getReadinessView({
+        date: input.date,
+        history_days: input.history_days ?? 28,
+    });
 }
