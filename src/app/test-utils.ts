@@ -1750,3 +1750,209 @@ export async function test_tp_createPlanWithRole(input: {
         is_system_template: input.is_system_template,
     });
 }
+
+// ============================================================================
+// Training Router Test Utilities (Workout Sessions)
+// ============================================================================
+
+const TRAINING_TEST_USER = 'training-test-user';
+
+/**
+ * Log a workout session (manual entry)
+ */
+export async function test_tr_logSession(input: {
+    tenant_id: string;
+    date: string;
+    duration_minutes: number;
+    srpe: number;
+    planned_session_id?: string;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.logSession({
+        date: input.date,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        planned_session_id: input.planned_session_id,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Update a workout session
+ */
+export async function test_tr_updateSession(input: {
+    tenant_id: string;
+    id: string;
+    duration_minutes?: number;
+    srpe?: number;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.updateSession({
+        id: input.id,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Get a workout session by ID
+ */
+export async function test_tr_getSession(input: {
+    tenant_id: string;
+    id: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getSession({ id: input.id });
+}
+
+/**
+ * Get workout sessions by date range
+ */
+export async function test_tr_getSessionsByDateRange(input: {
+    tenant_id: string;
+    start_date: string;
+    end_date: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getSessionsByDateRange({
+        start_date: input.start_date,
+        end_date: input.end_date,
+    });
+}
+
+/**
+ * Get ACWR status for a date
+ */
+export async function test_tr_getACWRStatus(input: {
+    tenant_id: string;
+    date: string;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getACWRStatus({ date: input.date });
+}
+
+/**
+ * Log a workout session via AI agent (voice entry)
+ */
+export async function test_tr_logSessionViaAgent(input: {
+    tenant_id: string;
+    date: string;
+    duration_minutes: number;
+    srpe: number;
+    agent_reasoning: string;
+    planned_session_id?: string;
+    completed_as_planned?: boolean;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.logSessionViaAgent({
+        date: input.date,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        agent_reasoning: input.agent_reasoning,
+        planned_session_id: input.planned_session_id,
+        completed_as_planned: input.completed_as_planned,
+    });
+}
+
+/**
+ * Mark an existing session as a voice entry with modifications
+ */
+export async function test_tr_markAsVoiceEntry(input: {
+    tenant_id: string;
+    id: string;
+    agent_reasoning: string;
+    modifications: Record<string, unknown>;
+}) {
+    const { trainingRouter } = await import('../trpc/routers/trainingRouter');
+    const db = getDb();
+    const caller = trainingRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.markAsVoiceEntry({
+        id: input.id,
+        agent_reasoning: input.agent_reasoning,
+        modifications: input.modifications,
+    });
+}
+
+// ============================================================================
+// Dashboard Router Test Utilities
+// ============================================================================
+
+/**
+ * Get readiness view data from dashboard
+ */
+export async function test_dash_getReadinessView(input: {
+    tenant_id: string;
+    date: string;
+    history_days?: number;
+}) {
+    const { dashboardRouter } = await import('../fate/dashboardRouter');
+    const db = getDb();
+    const caller = dashboardRouter.createCaller({
+        session: { userId: TRAINING_TEST_USER, tenantId: input.tenant_id, role: 'athlete' },
+        tenantId: input.tenant_id,
+        userId: TRAINING_TEST_USER,
+        role: 'athlete',
+        db,
+    });
+    return await caller.getReadinessView({
+        date: input.date,
+        history_days: input.history_days ?? 28,
+    });
+}
