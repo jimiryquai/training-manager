@@ -83,15 +83,19 @@ export async function upsertDailyWellness(
   db: Kysely<Database>,
   input: CreateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
-  const now = new Date().toISOString();
-  const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
+  return wrapDatabaseError('upsertDailyWellness', async () => {
+    const now = new Date().toISOString();
+    const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
+    const id = crypto.randomUUID();
 
-  const existing = await getDailyWellnessByDate(db, input);
-  
-  if (existing) {
+    // Use ON CONFLICT to eliminate TOCTOU race between read and write
     const result = await db
-      .updateTable('daily_wellness')
-      .set({
+      .insertInto('daily_wellness')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        user_id: input.user_id,
+        date: input.date,
         rhr: input.rhr,
         hrv_rmssd: input.hrv_rmssd,
         sleep_score: input.sleep_score ?? null,
@@ -100,21 +104,35 @@ export async function upsertDailyWellness(
         stress_score: input.stress_score ?? null,
         mood_score: input.mood_score ?? null,
         diet_score: input.diet_score ?? null,
-        data_source: input.data_source ?? (existing.data_source as DataSource),
+        data_source: input.data_source ?? 'manual_slider',
+        created_at: now,
         updated_at: now
       })
-      .where('id', '=', existing.id)
+      .onConflict((oc) => oc
+        .columns(['tenant_id', 'user_id', 'date'])
+        .doUpdateSet({
+          rhr: input.rhr,
+          hrv_rmssd: input.hrv_rmssd,
+          sleep_score: input.sleep_score ?? null,
+          fatigue_score: input.fatigue_score ?? null,
+          muscle_soreness_score: input.muscle_soreness_score ?? null,
+          stress_score: input.stress_score ?? null,
+          mood_score: input.mood_score ?? null,
+          diet_score: input.diet_score ?? null,
+          data_source: input.data_source ?? 'manual_slider',
+          updated_at: now,
+        })
+      )
       .returningAll()
       .executeTakeFirst();
 
     if (!result) return undefined;
+
     return {
       ...result,
       hrv_ratio
     };
-  }
-
-  return createDailyWellness(db, input);
+  });
 }
 
 export interface GetDailyWellnessInput {
