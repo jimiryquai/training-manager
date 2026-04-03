@@ -188,7 +188,7 @@ export async function cloneTrainingPlanToTenant(
 
     if (!sourcePlan) return undefined;
 
-    // Get all sessions and exercises for the plan
+    // Get all sessions for the plan
     const sessions = await getTrainingSessionsByPlan(db, { plan_id: input.plan_id });
 
     // Create the cloned plan
@@ -200,10 +200,41 @@ export async function cloneTrainingPlanToTenant(
 
     if (!clonedPlan) return undefined;
 
-    // Clone all sessions and their exercises
+    // OPTIMIZATION: Fetch all exercises for all sessions in one query
+    // Reduces DB round-trips from N (one per session) to 1
+    const sessionIds = sessions.map(s => s.id);
+    const allExercises = sessionIds.length > 0
+      ? await db
+          .selectFrom('session_exercise')
+          .where('session_id', 'in', sessionIds)
+          .selectAll()
+          .execute()
+      : [];
+
+    // Group exercises by their original session_id for efficient lookup
+    const exercisesBySession = Map.groupBy(allExercises, e => e.session_id);
+
+    // Clone all sessions and collect exercise insert data
+    const exerciseInserts: Array<{
+      id: string;
+      tenant_id: string;
+      session_id: string;
+      exercise_dictionary_id: string;
+      circuit_group: string | null;
+      order_in_session: number;
+      scheme_name: string | null;
+      target_sets: number | null;
+      target_reps: string | null;
+      target_intensity: number | null;
+      target_rpe: number | null;
+      target_tempo: string | null;
+      target_rest_seconds: number | null;
+      coach_notes: string | null;
+      created_at: string;
+      updated_at: string;
+    }> = [];
+
     for (const session of sessions) {
-      const exercises = await getSessionExercisesBySession(db, { session_id: session.id });
-      
       const clonedSession = await createTrainingSession(db, {
         tenant_id: input.tenant_id,
         plan_id: clonedPlan.id,
@@ -214,8 +245,12 @@ export async function cloneTrainingPlanToTenant(
       });
 
       if (clonedSession) {
+        const exercises = exercisesBySession.get(session.id) ?? [];
+        const now = nowISO();
+
         for (const exercise of exercises) {
-          await createSessionExercise(db, {
+          exerciseInserts.push({
+            id: createId(),
             tenant_id: input.tenant_id,
             session_id: clonedSession.id,
             exercise_dictionary_id: exercise.exercise_dictionary_id,
@@ -229,9 +264,23 @@ export async function cloneTrainingPlanToTenant(
             target_tempo: exercise.target_tempo,
             target_rest_seconds: exercise.target_rest_seconds,
             coach_notes: exercise.coach_notes,
+            created_at: now,
+            updated_at: now,
           });
         }
       }
+    }
+
+    // OPTIMIZATION: Batch insert exercises with max 5 records per query
+    // D1 has a limit on SQL variables, so we batch to avoid "too many SQL variables" errors
+    // Reduces DB round-trips from M (one per exercise) to ceil(M/5)
+    const BATCH_SIZE = 5;
+    for (let i = 0; i < exerciseInserts.length; i += BATCH_SIZE) {
+      const batch = exerciseInserts.slice(i, i + BATCH_SIZE);
+      await db
+        .insertInto('session_exercise')
+        .values(batch)
+        .execute();
     }
 
     return clonedPlan;
