@@ -125,4 +125,54 @@ describe('CORS Handler Integration Tests', () => {
       expect(result.errors.some(e => e.includes('Access-Control-Allow-Methods'))).toBe(true);
     });
   });
+
+  describe('Configurable CORS origin', () => {
+    it('should use custom origin when allowedOrigin is provided', async () => {
+      const customOrigin = 'https://example.com';
+      const result = await vitestInvoke<{
+        status: number;
+        headers: Record<string, string>;
+      }>('test_corsOptionsPreflightWithCustomOrigin', {
+        allowedOrigin: customOrigin,
+      });
+
+      expect(result.status).toBe(204);
+      expect(result.headers['access-control-allow-origin']).toBe(customOrigin);
+    });
+
+    it('should support localhost origin for development', async () => {
+      const localOrigin = 'http://localhost:3000';
+      const result = await vitestInvoke<{
+        status: number;
+        headers: Record<string, string>;
+      }>('test_corsOptionsPreflightWithCustomOrigin', {
+        allowedOrigin: localOrigin,
+      });
+
+      expect(result.headers['access-control-allow-origin']).toBe(localOrigin);
+    });
+
+    it('should return default * when no origin is specified', async () => {
+      const result = await vitestInvoke<{
+        status: number;
+        headers: Record<string, string>;
+      }>('test_corsOptionsPreflight');
+
+      expect(result.headers['access-control-allow-origin']).toBe('*');
+    });
+
+    it('should include custom origin on POST response', async () => {
+      const customOrigin = 'https://app.example.com';
+      const result = await vitestInvoke<{
+        status: number;
+        headers: Record<string, string>;
+      }>('test_corsPostRequest', {
+        body: JSON.stringify({}),
+        contentType: 'application/json',
+        allowedOrigin: customOrigin,
+      });
+
+      expect(result.headers['access-control-allow-origin']).toBe(customOrigin);
+    });
+  });
 });
