@@ -12,8 +12,10 @@ import { D1Dialect } from 'kysely-d1';
 import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { createWorkersAI } from 'workers-ai-provider';
-import type { Database, BenchmarkUnit } from '../db/schema';
+import type { Database } from '../db/schema';
 import type { SessionData } from '../session/UserSession';
+import { toolRegistry } from './tools/registry';
+import type { ToolContext } from './tools/types';
 
 // ============================================================================
 // Types
@@ -366,164 +368,25 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
       return undefined;
     }
 
+    const handler = toolRegistry[tool];
+    if (!handler) {
+      connection.send(JSON.stringify({
+        type: 'tool_error',
+        requestId,
+        error: `Unknown tool: ${tool}`,
+      }));
+      return undefined;
+    }
+
     try {
-      const db = this.getDb();
-      const services = await import('../services');
-      let result: unknown;
+      const ctx: ToolContext = {
+        db: this.getDb(),
+        userId,
+        tenantId,
+        agentState: this.state,
+      };
 
-      switch (tool) {
-        case 'logWellness':
-          result = await services.createDailyWellnessViaAgent(db, {
-            tenant_id: tenantId,
-            user_id: userId,
-            date: params.date as string,
-            rhr: params.rhr as number,
-            hrv_rmssd: params.hrv_rmssd as number,
-            sleep_score: params.sleep_score as number | undefined,
-            fatigue_score: params.fatigue_score as number | undefined,
-            mood_score: params.mood_score as number | undefined,
-            muscle_soreness_score: params.muscle_soreness_score as number | undefined,
-            stress_score: params.stress_score as number | undefined,
-            diet_score: params.diet_score as number | undefined,
-          });
-          break;
-
-        case 'getWellness':
-          if (params.start_date && params.end_date) {
-            result = await services.getDailyWellnessByDateRange(db, {
-              tenant_id: tenantId,
-              user_id: userId,
-              start_date: params.start_date as string,
-              end_date: params.end_date as string,
-            });
-          } else {
-            result = await services.getDailyWellnessByDate(db, {
-              tenant_id: tenantId,
-              user_id: userId,
-              date: (params.date as string) || new Date().toISOString().split('T')[0],
-            });
-          }
-          break
-
-        case 'logWorkout':
-          result = await services.createWorkoutSessionViaAgent(db, {
-            tenant_id: tenantId,
-            user_id: userId,
-            date: params.date as string,
-            duration_minutes: params.duration_minutes as number,
-            srpe: params.srpe as number,
-            planned_session_id: params.planned_session_id as string | undefined,
-            completed_as_planned: (params.completed_as_planned as number) ?? 1,
-            agent_reasoning: (params.modifications as string) || 'Logged via CoachAgent',
-          });
-          break
-
-        case 'getWorkoutHistory':
-          result = await services.getWorkoutSessionsByDateRange(db, {
-            tenant_id: tenantId,
-            user_id: userId,
-            start_date: params.start_date as string,
-            end_date: params.end_date as string,
-          });
-          break
-
-        case 'getACWR':
-          result = await services.calculateACWR(db, {
-            tenant_id: tenantId,
-            user_id: userId,
-            date: (params.date as string) || new Date().toISOString().split('T')[0],
-          });
-          break
-
-        case 'getACWRTrend':
-          result = await services.calculateHistoricalACWR(db, {
-            tenant_id: tenantId,
-            user_id: userId,
-            start_date: params.start_date as string,
-            end_date: params.end_date as string,
-          });
-          break
-
-        case 'getTrainingPlan':
-          if (params.plan_id) {
-            result = await services.getFullTrainingPlan(db, {
-              id: params.plan_id as string,
-              tenant_id: tenantId,
-            });
-          } else {
-            result = await services.getTrainingPlansForTenant(db, tenantId);
-          }
-          break
-
-        case 'getTodaysSession': {
-          const dayOfWeek = new Date().toLocaleDateString('en-US', { weekday: 'long' });
-          if (this.state.sessionContext.currentPlanId) {
-            const sessions = await services.getTrainingSessionsByPlan(db, {
-              plan_id: this.state.sessionContext.currentPlanId,
-              tenant_id: tenantId,
-            });
-            result = sessions.find(s => s.day_of_week === dayOfWeek) || null;
-          } else {
-            result = null;
-          }
-          break;
-        }
-
-        case 'getBenchmarks':
-          result = await db
-            .selectFrom('user_benchmarks')
-            .where('tenant_id', '=', tenantId)
-            .where('user_id', '=', userId)
-            .selectAll()
-            .execute();
-          break;
-
-        case 'updateBenchmark': {
-          const now = new Date().toISOString();
-          const unit = ((params.unit as string) || 'kg') as BenchmarkUnit;
-
-          const updated = await db
-            .updateTable('user_benchmarks')
-            .set({
-              benchmark_value: params.value as number,
-              benchmark_unit: unit,
-              updated_at: now,
-            })
-            .where('tenant_id', '=', tenantId)
-            .where('user_id', '=', userId)
-            .where('benchmark_name', '=', params.benchmark_name as string)
-            .returningAll()
-            .executeTakeFirst();
-
-          if (!updated) {
-            result = await db
-              .insertInto('user_benchmarks')
-              .values({
-                id: crypto.randomUUID(),
-                tenant_id: tenantId,
-                user_id: userId,
-                benchmark_name: params.benchmark_name as string,
-                benchmark_value: params.value as number,
-                benchmark_unit: unit,
-                created_at: now,
-                updated_at: now,
-              })
-              .returningAll()
-              .executeTakeFirst();
-          } else {
-            result = updated;
-          }
-          break;
-        }
-
-        default:
-          connection.send(JSON.stringify({
-            type: 'tool_error',
-            requestId,
-            error: `Unknown tool: ${tool}`,
-          }));
-          return undefined;
-      }
+      const result = await handler(ctx, params);
 
       if (requestId) {
         connection.send(JSON.stringify({
