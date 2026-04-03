@@ -339,6 +339,48 @@ describe('trainingPlanRouter - Integration Tests', () => {
 
       expect(result).toBeUndefined();
     });
+
+    it('should reject cross-tenant clone attempts (security)', async () => {
+      // Create a private plan in Tenant A (NOT a system template)
+      const privatePlanA = await vitestInvoke<any>('test_tp_createPlan', {
+        tenant_id: TEST_TENANT_A,
+        name: 'Private Plan A',
+      });
+
+      // Tenant B attempts to clone Tenant A's private plan
+      const result = await vitestInvoke<any>('test_tp_clonePlan', {
+        tenant_id: TEST_TENANT_B,
+        plan_id: privatePlanA.id,
+      });
+
+      // Should return undefined - cross-tenant access denied
+      expect(result).toBeUndefined();
+
+      // Verify no plan was created in Tenant B
+      const tenantBPlans = await vitestInvoke<any[]>('test_tp_getPlansForTenant', {
+        tenant_id: TEST_TENANT_B,
+      });
+      expect(tenantBPlans.some(p => p.name.includes('Private Plan A'))).toBe(false);
+    });
+
+    it('should allow cloning own tenant plans', async () => {
+      // Create a private plan in Tenant A
+      const privatePlanA = await vitestInvoke<any>('test_tp_createPlan', {
+        tenant_id: TEST_TENANT_A,
+        name: 'My Private Plan',
+      });
+
+      // Tenant A clones their own plan
+      const cloned = await vitestInvoke<any>('test_tp_clonePlan', {
+        tenant_id: TEST_TENANT_A,
+        plan_id: privatePlanA.id,
+        new_name: 'My Cloned Plan',
+      });
+
+      expect(cloned).toBeDefined();
+      expect(cloned.tenant_id).toBe(TEST_TENANT_A);
+      expect(cloned.name).toBe('My Cloned Plan');
+    });
   });
 
   describe('getFullPlan', () => {

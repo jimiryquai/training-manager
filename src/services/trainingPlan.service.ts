@@ -174,8 +174,18 @@ export async function cloneTrainingPlanToTenant(
   }
 ): Promise<TrainingPlanRecord | undefined> {
   return wrapDatabaseError('cloneTrainingPlanToTenant', async () => {
-    const sourcePlan = await getTrainingPlanById(db, { id: input.plan_id });
-    
+    // SECURITY: Only allow cloning of system templates or tenant-owned plans
+    // This prevents cross-tenant access by guessing UUIDs
+    const sourcePlan = await db
+      .selectFrom('training_plan')
+      .where('id', '=', input.plan_id)
+      .where(eb => eb.or([
+        eb.and([eb('tenant_id', 'is', null), eb('is_system_template', '=', 1)]),
+        eb('tenant_id', '=', input.tenant_id),
+      ]))
+      .selectAll()
+      .executeTakeFirst();
+
     if (!sourcePlan) return undefined;
 
     // Get all sessions and exercises for the plan
