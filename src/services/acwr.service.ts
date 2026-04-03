@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 import { getWorkoutSessionsByDateRange, type WorkoutSessionRecord } from './workoutSession.service';
+import { wrapDatabaseError } from './errors';
 
 export interface ACWRInput {
   tenant_id: string;
@@ -88,40 +89,42 @@ export async function calculateACWR(
   db: Kysely<Database>,
   input: ACWRInput
 ): Promise<ACWRResult> {
-  const refDate = new Date(input.date);
+  return wrapDatabaseError('calculateACWR', async () => {
+    const refDate = new Date(input.date);
 
-  const acuteStartDate = new Date(refDate);
-  acuteStartDate.setDate(acuteStartDate.getDate() - 6);
+    const acuteStartDate = new Date(refDate);
+    acuteStartDate.setDate(acuteStartDate.getDate() - 6);
 
-  const chronicStartDate = new Date(refDate);
-  chronicStartDate.setDate(chronicStartDate.getDate() - 27);
+    const chronicStartDate = new Date(refDate);
+    chronicStartDate.setDate(chronicStartDate.getDate() - 27);
 
-  const acuteSessions = await getWorkoutSessionsByDateRange(db, {
-    tenant_id: input.tenant_id,
-    start_date: acuteStartDate.toISOString().split('T')[0],
-    end_date: input.date,
-    user_id: input.user_id
+    const acuteSessions = await getWorkoutSessionsByDateRange(db, {
+      tenant_id: input.tenant_id,
+      start_date: acuteStartDate.toISOString().split('T')[0],
+      end_date: input.date,
+      user_id: input.user_id
+    });
+
+    const chronicSessions = await getWorkoutSessionsByDateRange(db, {
+      tenant_id: input.tenant_id,
+      start_date: chronicStartDate.toISOString().split('T')[0],
+      end_date: input.date,
+      user_id: input.user_id
+    });
+
+    const acute_load = calculateAcuteLoad(acuteSessions, input.date);
+    const chronic_load = calculateChronicLoad(chronicSessions, input.date);
+
+    const ratio = chronic_load === 0 ? 0 : acute_load / chronic_load;
+
+    return {
+      date: input.date,
+      acute_load,
+      chronic_load,
+      ratio,
+      isDanger: isDangerZone(ratio)
+    };
   });
-
-  const chronicSessions = await getWorkoutSessionsByDateRange(db, {
-    tenant_id: input.tenant_id,
-    start_date: chronicStartDate.toISOString().split('T')[0],
-    end_date: input.date,
-    user_id: input.user_id
-  });
-
-  const acute_load = calculateAcuteLoad(acuteSessions, input.date);
-  const chronic_load = calculateChronicLoad(chronicSessions, input.date);
-
-  const ratio = chronic_load === 0 ? 0 : acute_load / chronic_load;
-
-  return {
-    date: input.date,
-    acute_load,
-    chronic_load,
-    ratio,
-    isDanger: isDangerZone(ratio)
-  };
 }
 
 // ============================================================================
@@ -161,8 +164,9 @@ export async function calculateHistoricalACWR(
   db: Kysely<Database>,
   input: HistoricalACWRInput
 ): Promise<HistoricalACWRPoint[]> {
-  const startDate = new Date(input.start_date);
-  const endDate = new Date(input.end_date);
+  return wrapDatabaseError('calculateHistoricalACWR', async () => {
+    const startDate = new Date(input.start_date);
+    const endDate = new Date(input.end_date);
 
   // We need to fetch sessions from 27 days before start_date to cover the chronic window
   const chronicLookbackStart = new Date(startDate);
@@ -215,7 +219,8 @@ export async function calculateHistoricalACWR(
     currentDate.setDate(currentDate.getDate() + 1);
   }
 
-  return results;
+    return results;
+  });
 }
 
 /**
@@ -236,7 +241,8 @@ export async function getACWRTrendSummary(
   db: Kysely<Database>,
   input: HistoricalACWRInput
 ): Promise<ACWRTrendSummary> {
-  const historical = await calculateHistoricalACWR(db, input);
+  return wrapDatabaseError('getACWRTrendSummary', async () => {
+    const historical = await calculateHistoricalACWR(db, input);
   
   if (historical.length === 0) {
     return {
@@ -279,13 +285,14 @@ export async function getACWRTrendSummary(
     }
   }
 
-  return {
-    avg_ratio,
-    max_ratio,
-    min_ratio,
-    days_in_danger_zone,
-    days_in_optimal_zone,
-    days_under_training,
-    trend_direction
-  };
+    return {
+      avg_ratio,
+      max_ratio,
+      min_ratio,
+      days_in_danger_zone,
+      days_in_optimal_zone,
+      days_under_training,
+      trend_direction
+    };
+  });
 }

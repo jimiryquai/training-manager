@@ -1,5 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { Database, TrainingPlanTable, TrainingSessionTable, SessionExerciseTable } from '../db/schema';
+import { wrapDatabaseError } from './errors';
 
 // ============================================================================
 // Training Plan Service
@@ -22,23 +23,25 @@ export async function createTrainingPlan(
   db: Kysely<Database>,
   input: CreateTrainingPlanInput
 ): Promise<TrainingPlanRecord | undefined> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  return wrapDatabaseError('createTrainingPlan', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
 
-  const result = await db
-    .insertInto('training_plan')
-    .values({
-      id,
-      tenant_id: input.tenant_id,
-      name: input.name,
-      is_system_template: input.is_system_template ?? (input.tenant_id === null ? 1 : 0),
-      created_at: now,
-      updated_at: now,
-    })
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .insertInto('training_plan')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        name: input.name,
+        is_system_template: input.is_system_template ?? (input.tenant_id === null ? 1 : 0),
+        created_at: now,
+        updated_at: now,
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface GetTrainingPlanInput {
@@ -50,15 +53,17 @@ export async function getTrainingPlanById(
   db: Kysely<Database>,
   input: GetTrainingPlanInput
 ): Promise<TrainingPlanRecord | undefined> {
-  let query = db
-    .selectFrom('training_plan')
-    .where('id', '=', input.id);
+  return wrapDatabaseError('getTrainingPlanById', async () => {
+    let query = db
+      .selectFrom('training_plan')
+      .where('id', '=', input.id);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query.selectAll().executeTakeFirst();
+    return query.selectAll().executeTakeFirst();
+  });
 }
 
 /**
@@ -68,12 +73,14 @@ export async function getTrainingPlanById(
 export async function getSystemTrainingPlans(
   db: Kysely<Database>
 ): Promise<TrainingPlanRecord[]> {
-  return db
-    .selectFrom('training_plan')
-    .where('tenant_id', 'is', null)
-    .where('is_system_template', '=', 1)
-    .selectAll()
-    .execute();
+  return wrapDatabaseError('getSystemTrainingPlans', async () => {
+    return db
+      .selectFrom('training_plan')
+      .where('tenant_id', 'is', null)
+      .where('is_system_template', '=', 1)
+      .selectAll()
+      .execute();
+  });
 }
 
 /**
@@ -83,14 +90,16 @@ export async function getTrainingPlansForTenant(
   db: Kysely<Database>,
   tenant_id: string
 ): Promise<TrainingPlanRecord[]> {
-  return db
-    .selectFrom('training_plan')
-    .where(eb => eb.or([
-      eb('tenant_id', 'is', null),
-      eb('tenant_id', '=', tenant_id)
-    ]))
-    .selectAll()
-    .execute();
+  return wrapDatabaseError('getTrainingPlansForTenant', async () => {
+    return db
+      .selectFrom('training_plan')
+      .where(eb => eb.or([
+        eb('tenant_id', 'is', null),
+        eb('tenant_id', '=', tenant_id)
+      ]))
+      .selectAll()
+      .execute();
+  });
 }
 
 export interface UpdateTrainingPlanInput {
@@ -103,20 +112,22 @@ export async function updateTrainingPlan(
   db: Kysely<Database>,
   input: UpdateTrainingPlanInput
 ): Promise<TrainingPlanRecord | undefined> {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = { updated_at: now };
+  return wrapDatabaseError('updateTrainingPlan', async () => {
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: now };
 
-  if (input.name !== undefined) updates.name = input.name;
+    if (input.name !== undefined) updates.name = input.name;
 
-  const result = await db
-    .updateTable('training_plan')
-    .set(updates)
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .updateTable('training_plan')
+      .set(updates)
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface DeleteTrainingPlanInput {
@@ -128,13 +139,15 @@ export async function deleteTrainingPlan(
   db: Kysely<Database>,
   input: DeleteTrainingPlanInput
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom('training_plan')
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .executeTakeFirst();
+  return wrapDatabaseError('deleteTrainingPlan', async () => {
+    const result = await db
+      .deleteFrom('training_plan')
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
 
 /**
@@ -149,57 +162,59 @@ export async function cloneTrainingPlanToTenant(
     new_name?: string;
   }
 ): Promise<TrainingPlanRecord | undefined> {
-  const sourcePlan = await getTrainingPlanById(db, { id: input.plan_id });
-  
-  if (!sourcePlan) return undefined;
-
-  // Get all sessions and exercises for the plan
-  const sessions = await getTrainingSessionsByPlan(db, { plan_id: input.plan_id });
-
-  // Create the cloned plan
-  const clonedPlan = await createTrainingPlan(db, {
-    tenant_id: input.tenant_id,
-    name: input.new_name ?? `${sourcePlan.name} (Copy)`,
-    is_system_template: 0,
-  });
-
-  if (!clonedPlan) return undefined;
-
-  // Clone all sessions and their exercises
-  for (const session of sessions) {
-    const exercises = await getSessionExercisesBySession(db, { session_id: session.id });
+  return wrapDatabaseError('cloneTrainingPlanToTenant', async () => {
+    const sourcePlan = await getTrainingPlanById(db, { id: input.plan_id });
     
-    const clonedSession = await createTrainingSession(db, {
+    if (!sourcePlan) return undefined;
+
+    // Get all sessions and exercises for the plan
+    const sessions = await getTrainingSessionsByPlan(db, { plan_id: input.plan_id });
+
+    // Create the cloned plan
+    const clonedPlan = await createTrainingPlan(db, {
       tenant_id: input.tenant_id,
-      plan_id: clonedPlan.id,
-      block_name: session.block_name,
-      week_number: session.week_number,
-      day_of_week: session.day_of_week,
-      session_name: session.session_name,
+      name: input.new_name ?? `${sourcePlan.name} (Copy)`,
+      is_system_template: 0,
     });
 
-    if (clonedSession) {
-      for (const exercise of exercises) {
-        await createSessionExercise(db, {
-          tenant_id: input.tenant_id,
-          session_id: clonedSession.id,
-          exercise_dictionary_id: exercise.exercise_dictionary_id,
-          circuit_group: exercise.circuit_group,
-          order_in_session: exercise.order_in_session,
-          scheme_name: exercise.scheme_name,
-          target_sets: exercise.target_sets,
-          target_reps: exercise.target_reps,
-          target_intensity: exercise.target_intensity,
-          target_rpe: exercise.target_rpe,
-          target_tempo: exercise.target_tempo,
-          target_rest_seconds: exercise.target_rest_seconds,
-          coach_notes: exercise.coach_notes,
-        });
+    if (!clonedPlan) return undefined;
+
+    // Clone all sessions and their exercises
+    for (const session of sessions) {
+      const exercises = await getSessionExercisesBySession(db, { session_id: session.id });
+      
+      const clonedSession = await createTrainingSession(db, {
+        tenant_id: input.tenant_id,
+        plan_id: clonedPlan.id,
+        block_name: session.block_name,
+        week_number: session.week_number,
+        day_of_week: session.day_of_week,
+        session_name: session.session_name,
+      });
+
+      if (clonedSession) {
+        for (const exercise of exercises) {
+          await createSessionExercise(db, {
+            tenant_id: input.tenant_id,
+            session_id: clonedSession.id,
+            exercise_dictionary_id: exercise.exercise_dictionary_id,
+            circuit_group: exercise.circuit_group,
+            order_in_session: exercise.order_in_session,
+            scheme_name: exercise.scheme_name,
+            target_sets: exercise.target_sets,
+            target_reps: exercise.target_reps,
+            target_intensity: exercise.target_intensity,
+            target_rpe: exercise.target_rpe,
+            target_tempo: exercise.target_tempo,
+            target_rest_seconds: exercise.target_rest_seconds,
+            coach_notes: exercise.coach_notes,
+          });
+        }
       }
     }
-  }
 
-  return clonedPlan;
+    return clonedPlan;
+  });
 }
 
 // ============================================================================
@@ -229,26 +244,28 @@ export async function createTrainingSession(
   db: Kysely<Database>,
   input: CreateTrainingSessionInput
 ): Promise<TrainingSessionRecord | undefined> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  return wrapDatabaseError('createTrainingSession', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
 
-  const result = await db
-    .insertInto('training_session')
-    .values({
-      id,
-      tenant_id: input.tenant_id,
-      plan_id: input.plan_id,
-      block_name: input.block_name ?? null,
-      week_number: input.week_number ?? null,
-      day_of_week: input.day_of_week ?? null,
-      session_name: input.session_name ?? null,
-      created_at: now,
-      updated_at: now,
-    })
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .insertInto('training_session')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        plan_id: input.plan_id,
+        block_name: input.block_name ?? null,
+        week_number: input.week_number ?? null,
+        day_of_week: input.day_of_week ?? null,
+        session_name: input.session_name ?? null,
+        created_at: now,
+        updated_at: now,
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface GetTrainingSessionInput {
@@ -260,15 +277,17 @@ export async function getTrainingSessionById(
   db: Kysely<Database>,
   input: GetTrainingSessionInput
 ): Promise<TrainingSessionRecord | undefined> {
-  let query = db
-    .selectFrom('training_session')
-    .where('id', '=', input.id);
+  return wrapDatabaseError('getTrainingSessionById', async () => {
+    let query = db
+      .selectFrom('training_session')
+      .where('id', '=', input.id);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query.selectAll().executeTakeFirst();
+    return query.selectAll().executeTakeFirst();
+  });
 }
 
 export interface GetTrainingSessionsByPlanInput {
@@ -280,19 +299,21 @@ export async function getTrainingSessionsByPlan(
   db: Kysely<Database>,
   input: GetTrainingSessionsByPlanInput
 ): Promise<TrainingSessionRecord[]> {
-  let query = db
-    .selectFrom('training_session')
-    .where('plan_id', '=', input.plan_id);
+  return wrapDatabaseError('getTrainingSessionsByPlan', async () => {
+    let query = db
+      .selectFrom('training_session')
+      .where('plan_id', '=', input.plan_id);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query
-    .orderBy('week_number', 'asc')
-    .orderBy('day_of_week', 'asc')
-    .selectAll()
-    .execute();
+    return query
+      .orderBy('week_number', 'asc')
+      .orderBy('day_of_week', 'asc')
+      .selectAll()
+      .execute();
+  });
 }
 
 export interface GetTrainingSessionsByWeekInput {
@@ -305,19 +326,21 @@ export async function getTrainingSessionsByWeek(
   db: Kysely<Database>,
   input: GetTrainingSessionsByWeekInput
 ): Promise<TrainingSessionRecord[]> {
-  let query = db
-    .selectFrom('training_session')
-    .where('plan_id', '=', input.plan_id)
-    .where('week_number', '=', input.week_number);
+  return wrapDatabaseError('getTrainingSessionsByWeek', async () => {
+    let query = db
+      .selectFrom('training_session')
+      .where('plan_id', '=', input.plan_id)
+      .where('week_number', '=', input.week_number);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query
-    .orderBy('day_of_week', 'asc')
-    .selectAll()
-    .execute();
+    return query
+      .orderBy('day_of_week', 'asc')
+      .selectAll()
+      .execute();
+  });
 }
 
 export interface UpdateTrainingSessionInput {
@@ -333,23 +356,25 @@ export async function updateTrainingSession(
   db: Kysely<Database>,
   input: UpdateTrainingSessionInput
 ): Promise<TrainingSessionRecord | undefined> {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = { updated_at: now };
+  return wrapDatabaseError('updateTrainingSession', async () => {
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: now };
 
-  if (input.block_name !== undefined) updates.block_name = input.block_name;
-  if (input.week_number !== undefined) updates.week_number = input.week_number;
-  if (input.day_of_week !== undefined) updates.day_of_week = input.day_of_week;
-  if (input.session_name !== undefined) updates.session_name = input.session_name;
+    if (input.block_name !== undefined) updates.block_name = input.block_name;
+    if (input.week_number !== undefined) updates.week_number = input.week_number;
+    if (input.day_of_week !== undefined) updates.day_of_week = input.day_of_week;
+    if (input.session_name !== undefined) updates.session_name = input.session_name;
 
-  const result = await db
-    .updateTable('training_session')
-    .set(updates)
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .updateTable('training_session')
+      .set(updates)
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface DeleteTrainingSessionInput {
@@ -361,13 +386,15 @@ export async function deleteTrainingSession(
   db: Kysely<Database>,
   input: DeleteTrainingSessionInput
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom('training_session')
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .executeTakeFirst();
+  return wrapDatabaseError('deleteTrainingSession', async () => {
+    const result = await db
+      .deleteFrom('training_session')
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
 
 // ============================================================================
@@ -411,33 +438,35 @@ export async function createSessionExercise(
   db: Kysely<Database>,
   input: CreateSessionExerciseInput
 ): Promise<SessionExerciseRecord | undefined> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
+  return wrapDatabaseError('createSessionExercise', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
 
-  const result = await db
-    .insertInto('session_exercise')
-    .values({
-      id,
-      tenant_id: input.tenant_id,
-      session_id: input.session_id,
-      exercise_dictionary_id: input.exercise_dictionary_id,
-      circuit_group: input.circuit_group ?? null,
-      order_in_session: input.order_in_session,
-      scheme_name: input.scheme_name ?? null,
-      target_sets: input.target_sets ?? null,
-      target_reps: input.target_reps ?? null,
-      target_intensity: input.target_intensity ?? null,
-      target_rpe: input.target_rpe ?? null,
-      target_tempo: input.target_tempo ?? null,
-      target_rest_seconds: input.target_rest_seconds ?? null,
-      coach_notes: input.coach_notes ?? null,
-      created_at: now,
-      updated_at: now,
-    })
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .insertInto('session_exercise')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        session_id: input.session_id,
+        exercise_dictionary_id: input.exercise_dictionary_id,
+        circuit_group: input.circuit_group ?? null,
+        order_in_session: input.order_in_session,
+        scheme_name: input.scheme_name ?? null,
+        target_sets: input.target_sets ?? null,
+        target_reps: input.target_reps ?? null,
+        target_intensity: input.target_intensity ?? null,
+        target_rpe: input.target_rpe ?? null,
+        target_tempo: input.target_tempo ?? null,
+        target_rest_seconds: input.target_rest_seconds ?? null,
+        coach_notes: input.coach_notes ?? null,
+        created_at: now,
+        updated_at: now,
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface GetSessionExerciseInput {
@@ -449,15 +478,17 @@ export async function getSessionExerciseById(
   db: Kysely<Database>,
   input: GetSessionExerciseInput
 ): Promise<SessionExerciseRecord | undefined> {
-  let query = db
-    .selectFrom('session_exercise')
-    .where('id', '=', input.id);
+  return wrapDatabaseError('getSessionExerciseById', async () => {
+    let query = db
+      .selectFrom('session_exercise')
+      .where('id', '=', input.id);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query.selectAll().executeTakeFirst();
+    return query.selectAll().executeTakeFirst();
+  });
 }
 
 export interface GetSessionExercisesBySessionInput {
@@ -469,18 +500,20 @@ export async function getSessionExercisesBySession(
   db: Kysely<Database>,
   input: GetSessionExercisesBySessionInput
 ): Promise<SessionExerciseRecord[]> {
-  let query = db
-    .selectFrom('session_exercise')
-    .where('session_id', '=', input.session_id);
+  return wrapDatabaseError('getSessionExercisesBySession', async () => {
+    let query = db
+      .selectFrom('session_exercise')
+      .where('session_id', '=', input.session_id);
 
-  if (input.tenant_id !== undefined) {
-    query = query.where('tenant_id', 'is', input.tenant_id);
-  }
+    if (input.tenant_id !== undefined) {
+      query = query.where('tenant_id', 'is', input.tenant_id);
+    }
 
-  return query
-    .orderBy('order_in_session', 'asc')
-    .selectAll()
-    .execute();
+    return query
+      .orderBy('order_in_session', 'asc')
+      .selectAll()
+      .execute();
+  });
 }
 
 /**
@@ -524,29 +557,31 @@ export async function updateSessionExercise(
   db: Kysely<Database>,
   input: UpdateSessionExerciseInput
 ): Promise<SessionExerciseRecord | undefined> {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = { updated_at: now };
+  return wrapDatabaseError('updateSessionExercise', async () => {
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: now };
 
-  if (input.circuit_group !== undefined) updates.circuit_group = input.circuit_group;
-  if (input.order_in_session !== undefined) updates.order_in_session = input.order_in_session;
-  if (input.scheme_name !== undefined) updates.scheme_name = input.scheme_name;
-  if (input.target_sets !== undefined) updates.target_sets = input.target_sets;
-  if (input.target_reps !== undefined) updates.target_reps = input.target_reps;
-  if (input.target_intensity !== undefined) updates.target_intensity = input.target_intensity;
-  if (input.target_rpe !== undefined) updates.target_rpe = input.target_rpe;
-  if (input.target_tempo !== undefined) updates.target_tempo = input.target_tempo;
-  if (input.target_rest_seconds !== undefined) updates.target_rest_seconds = input.target_rest_seconds;
-  if (input.coach_notes !== undefined) updates.coach_notes = input.coach_notes;
+    if (input.circuit_group !== undefined) updates.circuit_group = input.circuit_group;
+    if (input.order_in_session !== undefined) updates.order_in_session = input.order_in_session;
+    if (input.scheme_name !== undefined) updates.scheme_name = input.scheme_name;
+    if (input.target_sets !== undefined) updates.target_sets = input.target_sets;
+    if (input.target_reps !== undefined) updates.target_reps = input.target_reps;
+    if (input.target_intensity !== undefined) updates.target_intensity = input.target_intensity;
+    if (input.target_rpe !== undefined) updates.target_rpe = input.target_rpe;
+    if (input.target_tempo !== undefined) updates.target_tempo = input.target_tempo;
+    if (input.target_rest_seconds !== undefined) updates.target_rest_seconds = input.target_rest_seconds;
+    if (input.coach_notes !== undefined) updates.coach_notes = input.coach_notes;
 
-  const result = await db
-    .updateTable('session_exercise')
-    .set(updates)
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .updateTable('session_exercise')
+      .set(updates)
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface DeleteSessionExerciseInput {
@@ -558,13 +593,15 @@ export async function deleteSessionExercise(
   db: Kysely<Database>,
   input: DeleteSessionExerciseInput
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom('session_exercise')
-    .where('id', '=', input.id)
-    .where('tenant_id', 'is', input.tenant_id)
-    .executeTakeFirst();
+  return wrapDatabaseError('deleteSessionExercise', async () => {
+    const result = await db
+      .deleteFrom('session_exercise')
+      .where('id', '=', input.id)
+      .where('tenant_id', 'is', input.tenant_id)
+      .executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
 
 // ============================================================================
@@ -585,12 +622,14 @@ export async function getFullTrainingSession(
   db: Kysely<Database>,
   input: { id: string; tenant_id?: string | null }
 ): Promise<TrainingSessionWithExercises | undefined> {
-  const session = await getTrainingSessionById(db, input);
-  if (!session) return undefined;
+  return wrapDatabaseError('getFullTrainingSession', async () => {
+    const session = await getTrainingSessionById(db, input);
+    if (!session) return undefined;
 
-  const exercises = await getSessionExercisesBySession(db, { session_id: session.id });
+    const exercises = await getSessionExercisesBySession(db, { session_id: session.id, tenant_id: input.tenant_id });
 
-  return { ...session, exercises };
+    return { ...session, exercises };
+  });
 }
 
 /**
@@ -607,16 +646,18 @@ export async function getFullTrainingPlan(
   db: Kysely<Database>,
   input: { id: string; tenant_id?: string | null }
 ): Promise<TrainingPlanWithSessions | undefined> {
-  const plan = await getTrainingPlanById(db, input);
-  if (!plan) return undefined;
+  return wrapDatabaseError('getFullTrainingPlan', async () => {
+    const plan = await getTrainingPlanById(db, input);
+    if (!plan) return undefined;
 
-  const sessions = await getTrainingSessionsByPlan(db, { plan_id: plan.id });
-  const sessionsWithExercises: TrainingSessionWithExercises[] = [];
+    const sessions = await getTrainingSessionsByPlan(db, { plan_id: plan.id, tenant_id: input.tenant_id });
+    const sessionsWithExercises: TrainingSessionWithExercises[] = [];
 
-  for (const session of sessions) {
-    const exercises = await getSessionExercisesBySession(db, { session_id: session.id });
-    sessionsWithExercises.push({ ...session, exercises });
-  }
+    for (const session of sessions) {
+      const exercises = await getSessionExercisesBySession(db, { session_id: session.id, tenant_id: input.tenant_id });
+      sessionsWithExercises.push({ ...session, exercises });
+    }
 
-  return { ...plan, sessions: sessionsWithExercises };
+    return { ...plan, sessions: sessionsWithExercises };
+  });
 }

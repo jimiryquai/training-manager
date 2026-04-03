@@ -1,5 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { Database, DailyWellnessTable, DataSource } from '../db/schema';
+import { wrapDatabaseError } from './errors';
 
 export interface CreateDailyWellnessInput {
   tenant_id: string;
@@ -42,38 +43,40 @@ export async function createDailyWellness(
   db: Kysely<Database>,
   input: CreateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
+  return wrapDatabaseError('createDailyWellness', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
 
-  const result = await db
-    .insertInto('daily_wellness')
-    .values({
-      id,
-      tenant_id: input.tenant_id,
-      user_id: input.user_id,
-      date: input.date,
-      rhr: input.rhr,
-      hrv_rmssd: input.hrv_rmssd,
-      sleep_score: input.sleep_score ?? null,
-      fatigue_score: input.fatigue_score ?? null,
-      muscle_soreness_score: input.muscle_soreness_score ?? null,
-      stress_score: input.stress_score ?? null,
-      mood_score: input.mood_score ?? null,
-      diet_score: input.diet_score ?? null,
-      data_source: input.data_source ?? 'manual_slider',
-      created_at: now,
-      updated_at: now
-    })
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .insertInto('daily_wellness')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        user_id: input.user_id,
+        date: input.date,
+        rhr: input.rhr,
+        hrv_rmssd: input.hrv_rmssd,
+        sleep_score: input.sleep_score ?? null,
+        fatigue_score: input.fatigue_score ?? null,
+        muscle_soreness_score: input.muscle_soreness_score ?? null,
+        stress_score: input.stress_score ?? null,
+        mood_score: input.mood_score ?? null,
+        diet_score: input.diet_score ?? null,
+        data_source: input.data_source ?? 'manual_slider',
+        created_at: now,
+        updated_at: now
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  if (!result) return undefined;
+    if (!result) return undefined;
 
-  return {
-    ...result,
-    hrv_ratio
-  };
+    return {
+      ...result,
+      hrv_ratio
+    };
+  });
 }
 
 export async function upsertDailyWellness(
@@ -124,20 +127,22 @@ export async function getDailyWellnessByDate(
   db: Kysely<Database>,
   input: GetDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
-  const result = await db
-    .selectFrom('daily_wellness')
-    .where('tenant_id', '=', input.tenant_id)
-    .where('user_id', '=', input.user_id)
-    .where('date', '=', input.date)
-    .selectAll()
-    .executeTakeFirst();
+  return wrapDatabaseError('getDailyWellnessByDate', async () => {
+    const result = await db
+      .selectFrom('daily_wellness')
+      .where('tenant_id', '=', input.tenant_id)
+      .where('user_id', '=', input.user_id)
+      .where('date', '=', input.date)
+      .selectAll()
+      .executeTakeFirst();
 
-  if (!result) return undefined;
+    if (!result) return undefined;
 
-  return {
-    ...result,
-    hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
-  };
+    return {
+      ...result,
+      hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
+    };
+  });
 }
 
 export interface GetDailyWellnessRangeInput {
@@ -151,19 +156,21 @@ export async function getDailyWellnessByDateRange(
   db: Kysely<Database>,
   input: GetDailyWellnessRangeInput
 ): Promise<DailyWellnessRecord[]> {
-  const results = await db
-    .selectFrom('daily_wellness')
-    .where('tenant_id', '=', input.tenant_id)
-    .where('user_id', '=', input.user_id)
-    .where('date', '>=', input.start_date)
-    .where('date', '<=', input.end_date)
-    .selectAll()
-    .execute();
+  return wrapDatabaseError('getDailyWellnessByDateRange', async () => {
+    const results = await db
+      .selectFrom('daily_wellness')
+      .where('tenant_id', '=', input.tenant_id)
+      .where('user_id', '=', input.user_id)
+      .where('date', '>=', input.start_date)
+      .where('date', '<=', input.end_date)
+      .selectAll()
+      .execute();
 
-  return results.map(r => ({
-    ...r,
-    hrv_ratio: calculateHrvRatio(r.hrv_rmssd, r.rhr)
-  }));
+    return results.map(r => ({
+      ...r,
+      hrv_ratio: calculateHrvRatio(r.hrv_rmssd, r.rhr)
+    }));
+  });
 }
 
 /**
@@ -204,37 +211,39 @@ export async function updateDailyWellness(
   db: Kysely<Database>,
   input: UpdateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = { updated_at: now };
+  return wrapDatabaseError('updateDailyWellness', async () => {
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: now };
 
-  if (input.rhr !== undefined) updates.rhr = input.rhr;
-  if (input.hrv_rmssd !== undefined) updates.hrv_rmssd = input.hrv_rmssd;
-  if (input.sleep_score !== undefined) updates.sleep_score = input.sleep_score;
-  if (input.fatigue_score !== undefined) updates.fatigue_score = input.fatigue_score;
-  if (input.muscle_soreness_score !== undefined) updates.muscle_soreness_score = input.muscle_soreness_score;
-  if (input.stress_score !== undefined) updates.stress_score = input.stress_score;
-  if (input.mood_score !== undefined) updates.mood_score = input.mood_score;
-  if (input.diet_score !== undefined) updates.diet_score = input.diet_score;
-  if (input.data_source !== undefined) updates.data_source = input.data_source;
+    if (input.rhr !== undefined) updates.rhr = input.rhr;
+    if (input.hrv_rmssd !== undefined) updates.hrv_rmssd = input.hrv_rmssd;
+    if (input.sleep_score !== undefined) updates.sleep_score = input.sleep_score;
+    if (input.fatigue_score !== undefined) updates.fatigue_score = input.fatigue_score;
+    if (input.muscle_soreness_score !== undefined) updates.muscle_soreness_score = input.muscle_soreness_score;
+    if (input.stress_score !== undefined) updates.stress_score = input.stress_score;
+    if (input.mood_score !== undefined) updates.mood_score = input.mood_score;
+    if (input.diet_score !== undefined) updates.diet_score = input.diet_score;
+    if (input.data_source !== undefined) updates.data_source = input.data_source;
 
-  let query = db
-    .updateTable('daily_wellness')
-    .set(updates)
-    .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id);
+    let query = db
+      .updateTable('daily_wellness')
+      .set(updates)
+      .where('id', '=', input.id)
+      .where('tenant_id', '=', input.tenant_id);
 
-  if (input.user_id !== undefined) {
-    query = query.where('user_id', '=', input.user_id);
-  }
+    if (input.user_id !== undefined) {
+      query = query.where('user_id', '=', input.user_id);
+    }
 
-  const result = await query.returningAll().executeTakeFirst();
+    const result = await query.returningAll().executeTakeFirst();
 
-  if (!result) return undefined;
+    if (!result) return undefined;
 
-  return {
-    ...result,
-    hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
-  };
+    return {
+      ...result,
+      hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
+    };
+  });
 }
 
 /**
@@ -266,18 +275,20 @@ export async function deleteDailyWellness(
   db: Kysely<Database>,
   input: DeleteDailyWellnessInput
 ): Promise<boolean> {
-  let query = db
-    .deleteFrom('daily_wellness')
-    .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id);
+  return wrapDatabaseError('deleteDailyWellness', async () => {
+    let query = db
+      .deleteFrom('daily_wellness')
+      .where('id', '=', input.id)
+      .where('tenant_id', '=', input.tenant_id);
 
-  if (input.user_id !== undefined) {
-    query = query.where('user_id', '=', input.user_id);
-  }
+    if (input.user_id !== undefined) {
+      query = query.where('user_id', '=', input.user_id);
+    }
 
-  const result = await query.executeTakeFirst();
+    const result = await query.executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
 
 export interface DeleteDailyWellnessByDateInput {
@@ -294,14 +305,16 @@ export async function deleteDailyWellnessByDate(
   db: Kysely<Database>,
   input: DeleteDailyWellnessByDateInput
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom('daily_wellness')
-    .where('tenant_id', '=', input.tenant_id)
-    .where('user_id', '=', input.user_id)
-    .where('date', '=', input.date)
-    .executeTakeFirst();
+  return wrapDatabaseError('deleteDailyWellnessByDate', async () => {
+    const result = await db
+      .deleteFrom('daily_wellness')
+      .where('tenant_id', '=', input.tenant_id)
+      .where('user_id', '=', input.user_id)
+      .where('date', '=', input.date)
+      .executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
 
 // ============================================================================
@@ -319,20 +332,22 @@ export async function getMostRecentWellness(
     user_id: string;
   }
 ): Promise<DailyWellnessRecord | undefined> {
-  const result = await db
-    .selectFrom('daily_wellness')
-    .where('tenant_id', '=', input.tenant_id)
-    .where('user_id', '=', input.user_id)
-    .orderBy('date', 'desc')
-    .selectAll()
-    .executeTakeFirst();
+  return wrapDatabaseError('getMostRecentWellness', async () => {
+    const result = await db
+      .selectFrom('daily_wellness')
+      .where('tenant_id', '=', input.tenant_id)
+      .where('user_id', '=', input.user_id)
+      .orderBy('date', 'desc')
+      .selectAll()
+      .executeTakeFirst();
 
-  if (!result) return undefined;
+    if (!result) return undefined;
 
-  return {
-    ...result,
-    hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
-  };
+    return {
+      ...result,
+      hrv_ratio: calculateHrvRatio(result.hrv_rmssd, result.rhr)
+    };
+  });
 }
 
 /**
@@ -353,51 +368,53 @@ export async function getAverageWellnessScores(
   avg_fatigue_score: number | null;
   entry_count: number;
 }> {
-  const results = await getDailyWellnessByDateRange(db, input);
+  return wrapDatabaseError('getAverageWellnessScores', async () => {
+    const results = await getDailyWellnessByDateRange(db, input);
 
-  if (results.length === 0) {
-    return {
-      avg_rhr: null,
-      avg_hrv_rmssd: null,
-      avg_sleep_score: null,
-      avg_diet_score: null,
-      avg_mood_score: null,
-      avg_muscle_soreness_score: null,
-      avg_stress_score: null,
-      avg_fatigue_score: null,
-      entry_count: 0
+    if (results.length === 0) {
+      return {
+        avg_rhr: null,
+        avg_hrv_rmssd: null,
+        avg_sleep_score: null,
+        avg_diet_score: null,
+        avg_mood_score: null,
+        avg_muscle_soreness_score: null,
+        avg_stress_score: null,
+        avg_fatigue_score: null,
+        entry_count: 0
+      };
+    }
+
+    const sumNotNull = (arr: (number | null)[]): number => 
+      arr.reduce((acc: number, val) => acc + (val ?? 0), 0);
+    
+    const countNotNull = (arr: (number | null)[]): number => 
+      arr.filter(v => v !== null).length;
+
+    const rhrValues = results.map(r => r.rhr);
+    const hrvValues = results.map(r => r.hrv_rmssd);
+    const sleepValues = results.map(r => r.sleep_score);
+    const dietValues = results.map(r => r.diet_score);
+    const moodValues = results.map(r => r.mood_score);
+    const sorenessValues = results.map(r => r.muscle_soreness_score);
+    const stressValues = results.map(r => r.stress_score);
+    const fatigueValues = results.map(r => r.fatigue_score);
+
+    const avgIfData = (values: (number | null)[]): number | null => {
+      const count = countNotNull(values);
+      return count > 0 ? sumNotNull(values) / count : null;
     };
-  }
 
-  const sumNotNull = (arr: (number | null)[]): number => 
-    arr.reduce((acc: number, val) => acc + (val ?? 0), 0);
-  
-  const countNotNull = (arr: (number | null)[]): number => 
-    arr.filter(v => v !== null).length;
-
-  const rhrValues = results.map(r => r.rhr);
-  const hrvValues = results.map(r => r.hrv_rmssd);
-  const sleepValues = results.map(r => r.sleep_score);
-  const dietValues = results.map(r => r.diet_score);
-  const moodValues = results.map(r => r.mood_score);
-  const sorenessValues = results.map(r => r.muscle_soreness_score);
-  const stressValues = results.map(r => r.stress_score);
-  const fatigueValues = results.map(r => r.fatigue_score);
-
-  const avgIfData = (values: (number | null)[]): number | null => {
-    const count = countNotNull(values);
-    return count > 0 ? sumNotNull(values) / count : null;
-  };
-
-  return {
-    avg_rhr: sumNotNull(rhrValues) / rhrValues.length,
-    avg_hrv_rmssd: sumNotNull(hrvValues) / hrvValues.length,
-    avg_sleep_score: avgIfData(sleepValues),
-    avg_diet_score: avgIfData(dietValues),
-    avg_mood_score: avgIfData(moodValues),
-    avg_muscle_soreness_score: avgIfData(sorenessValues),
-    avg_stress_score: avgIfData(stressValues),
-    avg_fatigue_score: avgIfData(fatigueValues),
-    entry_count: results.length
-  };
+    return {
+      avg_rhr: sumNotNull(rhrValues) / rhrValues.length,
+      avg_hrv_rmssd: sumNotNull(hrvValues) / hrvValues.length,
+      avg_sleep_score: avgIfData(sleepValues),
+      avg_diet_score: avgIfData(dietValues),
+      avg_mood_score: avgIfData(moodValues),
+      avg_muscle_soreness_score: avgIfData(sorenessValues),
+      avg_stress_score: avgIfData(stressValues),
+      avg_fatigue_score: avgIfData(fatigueValues),
+      entry_count: results.length
+    };
+  });
 }

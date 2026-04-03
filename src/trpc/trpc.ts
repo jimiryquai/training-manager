@@ -1,5 +1,6 @@
 import { initTRPC, TRPCError } from '@trpc/server';
 import type { TRPCContext } from './context';
+import { ServiceError } from '../services/errors';
 
 const t = initTRPC.context<TRPCContext>().create();
 
@@ -14,12 +15,29 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
     });
   }
 
-  return next({
-    ctx: {
-      ...ctx,
-      session: ctx.session,
-      tenantId: ctx.tenantId,
-      userId: ctx.userId,
-    },
-  });
+  try {
+    return await next({
+      ctx: {
+        ...ctx,
+        session: ctx.session,
+        tenantId: ctx.tenantId,
+        userId: ctx.userId,
+      },
+    });
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      const codeMap: Record<string, 'NOT_FOUND' | 'UNAUTHORIZED' | 'BAD_REQUEST' | 'INTERNAL_SERVER_ERROR'> = {
+        NOT_FOUND: 'NOT_FOUND',
+        UNAUTHORIZED: 'UNAUTHORIZED',
+        VALIDATION_ERROR: 'BAD_REQUEST',
+        DATABASE_ERROR: 'INTERNAL_SERVER_ERROR',
+      };
+      throw new TRPCError({
+        code: codeMap[error.code] ?? 'INTERNAL_SERVER_ERROR',
+        message: error.message,
+        cause: error.cause,
+      });
+    }
+    throw error;
+  }
 });

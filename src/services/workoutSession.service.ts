@@ -1,5 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { Database, WorkoutSessionTable } from '../db/schema';
+import { wrapDatabaseError } from './errors';
 
 export interface CreateWorkoutSessionInput {
   tenant_id: string;
@@ -35,31 +36,33 @@ export async function createWorkoutSession(
   db: Kysely<Database>,
   input: CreateWorkoutSessionInput
 ): Promise<WorkoutSessionRecord | undefined> {
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-  const training_load = calculateTrainingLoad(input.duration_minutes, input.srpe);
+  return wrapDatabaseError('createWorkoutSession', async () => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const training_load = calculateTrainingLoad(input.duration_minutes, input.srpe);
 
-  const result = await db
-    .insertInto('workout_session')
-    .values({
-      id,
-      tenant_id: input.tenant_id,
-      user_id: input.user_id,
-      date: input.date,
-      planned_session_id: input.planned_session_id ?? null,
-      duration_minutes: input.duration_minutes,
-      srpe: input.srpe,
-      training_load,
-      completed_as_planned: input.completed_as_planned ?? 1,
-      is_voice_entry: input.is_voice_entry ?? 0,
-      agent_interaction_log: input.agent_interaction_log ?? null,
-      created_at: now,
-      updated_at: now
-    })
-    .returningAll()
-    .executeTakeFirst();
+    const result = await db
+      .insertInto('workout_session')
+      .values({
+        id,
+        tenant_id: input.tenant_id,
+        user_id: input.user_id,
+        date: input.date,
+        planned_session_id: input.planned_session_id ?? null,
+        duration_minutes: input.duration_minutes,
+        srpe: input.srpe,
+        training_load,
+        completed_as_planned: input.completed_as_planned ?? 1,
+        is_voice_entry: input.is_voice_entry ?? 0,
+        agent_interaction_log: input.agent_interaction_log ?? null,
+        created_at: now,
+        updated_at: now
+      })
+      .returningAll()
+      .executeTakeFirst();
 
-  return result;
+    return result;
+  });
 }
 
 export interface UpdateWorkoutSessionInput {
@@ -76,49 +79,51 @@ export async function updateWorkoutSession(
   db: Kysely<Database>,
   input: UpdateWorkoutSessionInput
 ): Promise<WorkoutSessionRecord | undefined> {
-  const now = new Date().toISOString();
-  const updates: Record<string, unknown> = { updated_at: now };
+  return wrapDatabaseError('updateWorkoutSession', async () => {
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updated_at: now };
 
-  if (input.duration_minutes !== undefined) {
-    updates.duration_minutes = input.duration_minutes;
-  }
-  if (input.srpe !== undefined) {
-    updates.srpe = input.srpe;
-  }
-  if (input.duration_minutes !== undefined || input.srpe !== undefined) {
-    // Recalculate training load if either component changed
-    const existing = await db
-      .selectFrom('workout_session')
+    if (input.duration_minutes !== undefined) {
+      updates.duration_minutes = input.duration_minutes;
+    }
+    if (input.srpe !== undefined) {
+      updates.srpe = input.srpe;
+    }
+    if (input.duration_minutes !== undefined || input.srpe !== undefined) {
+      // Recalculate training load if either component changed
+      const existing = await db
+        .selectFrom('workout_session')
+        .where('id', '=', input.id)
+        .where('tenant_id', '=', input.tenant_id)
+        .selectAll()
+        .executeTakeFirst();
+      
+      if (existing) {
+        const duration = input.duration_minutes ?? existing.duration_minutes;
+        const srpe = input.srpe ?? existing.srpe;
+        updates.training_load = calculateTrainingLoad(duration, srpe);
+      }
+    }
+    if (input.completed_as_planned !== undefined) {
+      updates.completed_as_planned = input.completed_as_planned;
+    }
+    if (input.is_voice_entry !== undefined) {
+      updates.is_voice_entry = input.is_voice_entry;
+    }
+    if (input.agent_interaction_log !== undefined) {
+      updates.agent_interaction_log = input.agent_interaction_log;
+    }
+
+    const result = await db
+      .updateTable('workout_session')
+      .set(updates)
       .where('id', '=', input.id)
       .where('tenant_id', '=', input.tenant_id)
-      .selectAll()
+      .returningAll()
       .executeTakeFirst();
-    
-    if (existing) {
-      const duration = input.duration_minutes ?? existing.duration_minutes;
-      const srpe = input.srpe ?? existing.srpe;
-      updates.training_load = calculateTrainingLoad(duration, srpe);
-    }
-  }
-  if (input.completed_as_planned !== undefined) {
-    updates.completed_as_planned = input.completed_as_planned;
-  }
-  if (input.is_voice_entry !== undefined) {
-    updates.is_voice_entry = input.is_voice_entry;
-  }
-  if (input.agent_interaction_log !== undefined) {
-    updates.agent_interaction_log = input.agent_interaction_log;
-  }
 
-  const result = await db
-    .updateTable('workout_session')
-    .set(updates)
-    .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
-    .returningAll()
-    .executeTakeFirst();
-
-  return result;
+    return result;
+  });
 }
 
 export interface GetSessionsByDateRangeInput {
@@ -132,17 +137,19 @@ export async function getWorkoutSessionsByDateRange(
   db: Kysely<Database>,
   input: GetSessionsByDateRangeInput
 ): Promise<WorkoutSessionRecord[]> {
-  let query = db
-    .selectFrom('workout_session')
-    .where('tenant_id', '=', input.tenant_id)
-    .where('date', '>=', input.start_date)
-    .where('date', '<=', input.end_date);
+  return wrapDatabaseError('getWorkoutSessionsByDateRange', async () => {
+    let query = db
+      .selectFrom('workout_session')
+      .where('tenant_id', '=', input.tenant_id)
+      .where('date', '>=', input.start_date)
+      .where('date', '<=', input.end_date);
 
-  if (input.user_id) {
-    query = query.where('user_id', '=', input.user_id);
-  }
+    if (input.user_id) {
+      query = query.where('user_id', '=', input.user_id);
+    }
 
-  return query.selectAll().execute();
+    return query.selectAll().execute();
+  });
 }
 
 export interface GetWorkoutSessionInput {
@@ -154,12 +161,14 @@ export async function getWorkoutSessionById(
   db: Kysely<Database>,
   input: GetWorkoutSessionInput
 ): Promise<WorkoutSessionRecord | undefined> {
-  return db
-    .selectFrom('workout_session')
-    .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
-    .selectAll()
-    .executeTakeFirst();
+  return wrapDatabaseError('getWorkoutSessionById', async () => {
+    return db
+      .selectFrom('workout_session')
+      .where('id', '=', input.id)
+      .where('tenant_id', '=', input.tenant_id)
+      .selectAll()
+      .executeTakeFirst();
+  });
 }
 
 /**
@@ -245,11 +254,13 @@ export async function deleteWorkoutSession(
   db: Kysely<Database>,
   input: DeleteWorkoutSessionInput
 ): Promise<boolean> {
-  const result = await db
-    .deleteFrom('workout_session')
-    .where('id', '=', input.id)
-    .where('tenant_id', '=', input.tenant_id)
-    .executeTakeFirst();
+  return wrapDatabaseError('deleteWorkoutSession', async () => {
+    const result = await db
+      .deleteFrom('workout_session')
+      .where('id', '=', input.id)
+      .where('tenant_id', '=', input.tenant_id)
+      .executeTakeFirst();
 
-  return result.numDeletedRows > 0;
+    return result.numDeletedRows > 0;
+  });
 }
