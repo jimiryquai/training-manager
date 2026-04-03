@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database, DailyWellnessTable, DataSource } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 
 export interface CreateDailyWellnessInput {
   tenant_id: string;
@@ -44,8 +45,8 @@ export async function createDailyWellness(
   input: CreateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
   return wrapDatabaseError('createDailyWellness', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
     const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
 
     const result = await db
@@ -84,9 +85,9 @@ export async function upsertDailyWellness(
   input: CreateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
   return wrapDatabaseError('upsertDailyWellness', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const hrv_ratio = calculateHrvRatio(input.hrv_rmssd, input.rhr);
-    const id = crypto.randomUUID();
+    const id = createId();
 
     // Use ON CONFLICT to eliminate TOCTOU race between read and write
     const result = await db
@@ -230,7 +231,7 @@ export async function updateDailyWellness(
   input: UpdateDailyWellnessInput
 ): Promise<DailyWellnessRecord | undefined> {
   return wrapDatabaseError('updateDailyWellness', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.rhr !== undefined) updates.rhr = input.rhr;

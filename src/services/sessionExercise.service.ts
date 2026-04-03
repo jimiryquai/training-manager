@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 
 // ============================================================================
 // Session Exercise Service
@@ -44,8 +45,8 @@ export async function createSessionExercise(
   input: CreateSessionExerciseInput
 ): Promise<SessionExerciseRecord | undefined> {
   return wrapDatabaseError('createSessionExercise', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
 
     const result = await db
       .insertInto('session_exercise')
@@ -163,7 +164,7 @@ export async function updateSessionExercise(
   input: UpdateSessionExerciseInput
 ): Promise<SessionExerciseRecord | undefined> {
   return wrapDatabaseError('updateSessionExercise', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.circuit_group !== undefined) updates.circuit_group = input.circuit_group;

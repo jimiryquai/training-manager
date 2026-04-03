@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 import {
   type SessionExerciseRecord,
   createSessionExercise,
@@ -34,8 +35,8 @@ export async function createTrainingPlan(
   input: CreateTrainingPlanInput
 ): Promise<TrainingPlanRecord | undefined> {
   return wrapDatabaseError('createTrainingPlan', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
 
     const result = await db
       .insertInto('training_plan')
@@ -123,7 +124,7 @@ export async function updateTrainingPlan(
   input: UpdateTrainingPlanInput
 ): Promise<TrainingPlanRecord | undefined> {
   return wrapDatabaseError('updateTrainingPlan', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.name !== undefined) updates.name = input.name;
