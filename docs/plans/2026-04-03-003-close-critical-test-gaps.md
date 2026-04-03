@@ -1,7 +1,7 @@
 ---
 title: Close Critical Test Gaps (Phase 3)
 type: testing
-status: pending
+status: complete
 date: 2026-04-03
 origin: docs/ideation/2026-04-03-cleanup-sweep-ideation.md
 depends_on: docs/plans/2026-04-03-002-split-training-plan-god-object.md
