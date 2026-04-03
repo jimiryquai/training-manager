@@ -1377,7 +1377,7 @@ export async function test_ts_deleteExercise(input: { tenant_id: string; id: str
 // CORS Test Utilities (for tRPC handler)
 // ============================================================================
 
-const CORS_HEADERS = {
+const DEFAULT_CORS_HEADERS = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -1386,12 +1386,11 @@ const CORS_HEADERS = {
 /**
  * Test OPTIONS preflight request to verify CORS headers
  */
-export async function test_corsOptionsPreflight(): Promise<{
+export async function test_corsOptionsPreflight(input?: { allowedOrigin?: string }): Promise<{
     status: number;
     headers: Record<string, string>;
 }> {
     const { createTRPCHandler } = await import('../trpc/handler');
-    const { env } = await import('cloudflare:workers');
     
     const db = getDb();
     const mockSessionStore = {
@@ -1401,6 +1400,7 @@ export async function test_corsOptionsPreflight(): Promise<{
     const handler = createTRPCHandler({
         sessionStore: mockSessionStore as any,
         db,
+        allowedOrigin: input?.allowedOrigin,
     });
     
     const request = new Request('http://localhost/trpc/test', {
@@ -1426,6 +1426,7 @@ export async function test_corsOptionsPreflight(): Promise<{
 export async function test_corsPostRequest(input: {
     body: string;
     contentType?: string;
+    allowedOrigin?: string;
 }): Promise<{
     status: number;
     headers: Record<string, string>;
@@ -1440,6 +1441,7 @@ export async function test_corsPostRequest(input: {
     const handler = createTRPCHandler({
         sessionStore: mockSessionStore as any,
         db,
+        allowedOrigin: input.allowedOrigin,
     });
     
     const request = new Request('http://localhost/trpc/healthcheck', {
@@ -1466,25 +1468,26 @@ export async function test_corsPostRequest(input: {
 /**
  * Verify CORS headers are present and correct
  */
-export function test_verifyCORSHeaders(headers: Record<string, string>): {
+export function test_verifyCORSHeaders(headers: Record<string, string>, expected?: Record<string, string>): {
     valid: boolean;
     errors: string[];
 } {
+    const expectedHeaders = expected ?? DEFAULT_CORS_HEADERS;
     const errors: string[] = [];
     
     // Check Access-Control-Allow-Origin
-    if (headers['access-control-allow-origin'] !== CORS_HEADERS['Access-Control-Allow-Origin']) {
-        errors.push(`Expected Access-Control-Allow-Origin '${CORS_HEADERS['Access-Control-Allow-Origin']}', got '${headers['access-control-allow-origin']}'`);
+    if (headers['access-control-allow-origin'] !== expectedHeaders['Access-Control-Allow-Origin']) {
+        errors.push(`Expected Access-Control-Allow-Origin '${expectedHeaders['Access-Control-Allow-Origin']}', got '${headers['access-control-allow-origin']}'`);
     }
     
     // Check Access-Control-Allow-Methods
-    if (headers['access-control-allow-methods'] !== CORS_HEADERS['Access-Control-Allow-Methods']) {
-        errors.push(`Expected Access-Control-Allow-Methods '${CORS_HEADERS['Access-Control-Allow-Methods']}', got '${headers['access-control-allow-methods']}'`);
+    if (headers['access-control-allow-methods'] !== expectedHeaders['Access-Control-Allow-Methods']) {
+        errors.push(`Expected Access-Control-Allow-Methods '${expectedHeaders['Access-Control-Allow-Methods']}', got '${headers['access-control-allow-methods']}'`);
     }
     
     // Check Access-Control-Allow-Headers
-    if (headers['access-control-allow-headers'] !== CORS_HEADERS['Access-Control-Allow-Headers']) {
-        errors.push(`Expected Access-Control-Allow-Headers '${CORS_HEADERS['Access-Control-Allow-Headers']}', got '${headers['access-control-allow-headers']}'`);
+    if (headers['access-control-allow-headers'] !== expectedHeaders['Access-Control-Allow-Headers']) {
+        errors.push(`Expected Access-Control-Allow-Headers '${expectedHeaders['Access-Control-Allow-Headers']}', got '${headers['access-control-allow-headers']}'`);
     }
     
     return {
@@ -1497,7 +1500,19 @@ export function test_verifyCORSHeaders(headers: Record<string, string>): {
  * Get expected CORS headers for comparison
  */
 export function test_getExpectedCORSHeaders(): Record<string, string> {
-    return { ...CORS_HEADERS };
+    return { ...DEFAULT_CORS_HEADERS };
+}
+
+/**
+ * Test OPTIONS preflight with a custom origin to verify configurable CORS
+ */
+export async function test_corsOptionsPreflightWithCustomOrigin(input: {
+    allowedOrigin: string;
+}): Promise<{
+    status: number;
+    headers: Record<string, string>;
+}> {
+    return test_corsOptionsPreflight({ allowedOrigin: input.allowedOrigin });
 }
 
 // ============================================================================
