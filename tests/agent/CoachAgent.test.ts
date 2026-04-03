@@ -2,6 +2,7 @@
  * CoachAgent Integration Tests
  *
  * Tests the AI coaching agent infrastructure including:
+ * - Session validation (HMAC-SHA256 signing)
  * - Tool execution (delegating to Kysely services)
  * - State management and validation
  * - Message handling logic
@@ -912,6 +913,165 @@ describe('CoachAgent', () => {
       ];
 
       expect(knownErrorCodes).toContain('AI_ERROR');
+    });
+  });
+
+  // ==========================================================================
+  // Session Validation Security Tests
+  // ==========================================================================
+
+  describe('Session Validation', () => {
+    const TEST_SESSION_ID = 'session-abc-123';
+    const TEST_SECRET_KEY = 'test-secret-key-for-hmac';
+
+    describe('Session ID Signing', () => {
+      it('should sign session ID with HMAC-SHA256', async () => {
+        const signature = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, TEST_SECRET_KEY);
+
+        expect(typeof signature).toBe('string');
+        expect(signature.length).toBe(64); // SHA-256 produces 64 hex characters
+        expect(/^[0-9a-f]+$/.test(signature)).toBe(true);
+      });
+
+      it('should produce deterministic signatures', async () => {
+        const sig1 = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, TEST_SECRET_KEY);
+        const sig2 = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, TEST_SECRET_KEY);
+
+        expect(sig1).toBe(sig2);
+      });
+
+      it('should produce different signatures for different session IDs', async () => {
+        const sig1 = await vitestInvoke('test_signSessionId', 'session-1', TEST_SECRET_KEY);
+        const sig2 = await vitestInvoke('test_signSessionId', 'session-2', TEST_SECRET_KEY);
+
+        expect(sig1).not.toBe(sig2);
+      });
+
+      it('should produce different signatures for different secret keys', async () => {
+        const sig1 = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, 'secret-1');
+        const sig2 = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, 'secret-2');
+
+        expect(sig1).not.toBe(sig2);
+      });
+    });
+
+    describe('Session ID Packing', () => {
+      it('should pack session ID and signature into base64', async () => {
+        const signature = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, TEST_SECRET_KEY);
+        const packed = await vitestInvoke('test_packSessionId', TEST_SESSION_ID, signature);
+
+        expect(typeof packed).toBe('string');
+        // Should be valid base64
+        expect(() => atob(packed)).not.toThrow();
+
+        // Should unpack to original format
+        const unpacked = atob(packed);
+        expect(unpacked).toBe(`${TEST_SESSION_ID}:${signature}`);
+      });
+    });
+
+    describe('Session Cookie Creation', () => {
+      it('should create valid signed session cookie', async () => {
+        const cookie = await vitestInvoke('test_createSignedSessionCookie', TEST_SESSION_ID, TEST_SECRET_KEY);
+
+        expect(cookie).toMatch(/^session_id=/);
+
+        // Extract packed value
+        const packedValue = cookie.replace('session_id=', '');
+
+        // Should be valid base64
+        expect(() => atob(packedValue)).not.toThrow();
+      });
+    });
+
+    describe('Session Validation', () => {
+      it('should validate correctly signed session', async () => {
+        const signature = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, TEST_SECRET_KEY);
+        const packed = await vitestInvoke('test_packSessionId', TEST_SESSION_ID, signature);
+
+        const result = await vitestInvoke('test_validateSignedSession', packed, TEST_SECRET_KEY);
+
+        expect(result.valid).toBe(true);
+        expect(result.unsignedSessionId).toBe(TEST_SESSION_ID);
+      });
+
+      it('should reject session with wrong signature', async () => {
+        const packed = btoa(`${TEST_SESSION_ID}:invalid-signature-here`);
+
+        const result = await vitestInvoke('test_validateSignedSession', packed, TEST_SECRET_KEY);
+
+        expect(result.valid).toBe(false);
+        expect(result.unsignedSessionId).toBeNull();
+      });
+
+      it('should reject session signed with different secret', async () => {
+        const signature = await vitestInvoke('test_signSessionId', TEST_SESSION_ID, 'different-secret');
+        const packed = await vitestInvoke('test_packSessionId', TEST_SESSION_ID, signature);
+
+        const result = await vitestInvoke('test_validateSignedSession', packed, TEST_SECRET_KEY);
+
+        expect(result.valid).toBe(false);
+        expect(result.unsignedSessionId).toBeNull();
+      });
+
+      it('should reject malformed packed session (no colon)', async () => {
+        const packed = btoa('no-colon-here');
+
+        const result = await vitestInvoke('test_validateSignedSession', packed, TEST_SECRET_KEY);
+
+        expect(result.valid).toBe(false);
+        expect(result.unsignedSessionId).toBeNull();
+      });
+
+      it('should reject invalid base64', async () => {
+        const result = await vitestInvoke('test_validateSignedSession', 'not-valid-base64!!!', TEST_SECRET_KEY);
+
+        expect(result.valid).toBe(false);
+        expect(result.unsignedSessionId).toBeNull();
+      });
+    });
+
+    describe('Cookie Header Parsing', () => {
+      it('should extract session_id from cookie header', async () => {
+        const header = 'other=value; session_id=abc123; another=value';
+        const sessionId = await vitestInvoke('test_extractSessionId', header);
+
+        expect(sessionId).toBe('abc123');
+      });
+
+      it('should return null when session_id not present', async () => {
+        const header = 'other=value; another=value';
+        const sessionId = await vitestInvoke('test_extractSessionId', header);
+
+        expect(sessionId).toBeNull();
+      });
+
+      it('should return null for empty cookie header', async () => {
+        const sessionId = await vitestInvoke('test_extractSessionId', '');
+
+        expect(sessionId).toBeNull();
+      });
+
+      it('should handle session_id as first cookie', async () => {
+        const header = 'session_id=first-value; other=value';
+        const sessionId = await vitestInvoke('test_extractSessionId', header);
+
+        expect(sessionId).toBe('first-value');
+      });
+
+      it('should handle session_id as only cookie', async () => {
+        const header = 'session_id=only-value';
+        const sessionId = await vitestInvoke('test_extractSessionId', header);
+
+        expect(sessionId).toBe('only-value');
+      });
+
+      it('should handle cookies with special characters in value', async () => {
+        const header = 'session_id=abc123%3Adef456%3A789';
+        const sessionId = await vitestInvoke('test_extractSessionId', header);
+
+        expect(sessionId).toBe('abc123%3Adef456%3A789');
+      });
     });
   });
 });

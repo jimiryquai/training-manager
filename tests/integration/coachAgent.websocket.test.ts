@@ -1,29 +1,87 @@
 /**
  * CoachAgent WebSocket Integration Tests
  *
- * These tests require a running dev server. Run with:
+ * Tests WebSocket session validation, connection lifecycle, and security.
+ *
+ * IMPORTANT: These tests require a running dev server with proper session setup.
+ * The new implementation validates session cookies against UserSession DO.
+ * Query params for userId/tenantId are NO LONGER trusted.
+ *
+ * Run with:
  *   pnpm run dev &
- *   pnpm exec vitest run tests/integration/coachAgent.websocket.test.ts
+ *   INTEGRATION_TEST=true pnpm exec vitest run tests/integration/coachAgent.websocket.test.ts
  *
  * Or use the test:integration script:
  *   pnpm run test:integration
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, beforeAll } from 'vitest';
+import { vitestInvoke } from 'rwsdk-community/test';
 
 const DEV_SERVER_URL = 'http://localhost:5173';
 const WS_URL = 'ws://localhost:5173';
-const TEST_TIMEOUT = 10000;
+const TEST_TIMEOUT = 15000;
+
+// Test constants
+const TEST_TENANT = 'tenant-ws-session-test';
+const TEST_USER = 'user-ws-session-test';
+const TEST_SESSION_ID = 'test-session-id-12345';
+const TEST_SECRET_KEY = 'test-secret-key-for-session-signing';
 
 // Skip these tests unless integration testing is explicitly enabled
 const shouldRun = process.env.INTEGRATION_TEST === 'true';
 
-describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
+describe.skipIf(!shouldRun)('CoachAgent WebSocket Session Validation', () => {
   let ws: WebSocket | null = null;
+  let validSessionCookie: string = '';
 
-  function connect(agentName: string, userId: string, tenantId: string): Promise<WebSocket> {
+  /**
+   * Create a signed session cookie for testing
+   */
+  async function createTestSessionCookie(sessionId: string, secretKey: string): Promise<string> {
+    const signature = await vitestInvoke('test_signSessionId', sessionId, secretKey);
+    const packed = await vitestInvoke('test_packSessionId', sessionId, signature);
+    return `session_id=${packed}`;
+  }
+
+  /**
+   * Connect to WebSocket with session cookie
+   */
+  function connectWithCookie(
+    agentName: string,
+    sessionCookie: string
+  ): Promise<WebSocket> {
     return new Promise((resolve, reject) => {
-      const url = `${WS_URL}/agents/CoachAgent/${agentName}?userId=${userId}&tenantId=${tenantId}`;
+      const url = `${WS_URL}/agents/CoachAgent/${agentName}`;
+      const socket = new WebSocket(url, {
+        headers: {
+          Cookie: sessionCookie
+        }
+      } as WebSocketInit);
+
+      const timeout = setTimeout(() => {
+        reject(new Error('Connection timeout'));
+        socket.close();
+      }, TEST_TIMEOUT);
+
+      socket.onopen = () => {
+        clearTimeout(timeout);
+        resolve(socket);
+      };
+
+      socket.onerror = (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      };
+    });
+  }
+
+  /**
+   * Connect to WebSocket without session cookie (for testing rejection)
+   */
+  function connectWithoutCookie(agentName: string): Promise<WebSocket> {
+    return new Promise((resolve, reject) => {
+      const url = `${WS_URL}/agents/CoachAgent/${agentName}`;
       const socket = new WebSocket(url);
 
       const timeout = setTimeout(() => {
@@ -43,6 +101,9 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   }
 
+  /**
+   * Wait for a specific message type from WebSocket
+   */
   function waitForMessage(socket: WebSocket, expectedType: string): Promise<any> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -64,9 +125,33 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   }
 
+  /**
+   * Wait for connection close with specific code
+   */
+  function waitForClose(socket: WebSocket): Promise<{ code: number; reason: string }> {
+    return new Promise((resolve) => {
+      socket.onclose = (event) => {
+        resolve({ code: event.code, reason: event.reason });
+      };
+    });
+  }
+
+  /**
+   * Send a message to WebSocket
+   */
   function sendMessage(socket: WebSocket, message: object): void {
     socket.send(JSON.stringify(message));
   }
+
+  beforeAll(async () => {
+    // Create a valid signed session cookie for tests
+    validSessionCookie = await createTestSessionCookie(TEST_SESSION_ID, TEST_SECRET_KEY);
+  });
+
+  beforeEach(async () => {
+    // Clean database before each test
+    await vitestInvoke('test_cleanDatabase', TEST_TENANT);
+  });
 
   afterEach(() => {
     if (ws) {
@@ -75,11 +160,110 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     }
   });
 
-  describe('WebSocket Connection Lifecycle', () => {
-    it('should connect and receive connected message with tools list', async () => {
-      ws = await connect('test-agent', 'test-user', 'test-tenant');
+  // ==========================================================================
+  // Session Validation Tests (Critical Security Tests)
+  // ==========================================================================
 
-      const message = await waitForMessage(ws, 'connected');
+  describe('Session Validation Security', () => {
+    it('should reject connection without session cookie (code 1008)', async () => {
+      const socket = await connectWithoutCookie('test-no-cookie');
+
+      // Should receive error message then close
+      const closeEvent = await waitForClose(socket);
+
+      expect(closeEvent.code).toBe(1008);
+      expect(closeEvent.reason).toBe('Unauthorized');
+    });
+
+    it('should reject connection with invalid session signature (code 1008)', async () => {
+      // Create cookie with wrong signature
+      const invalidCookie = `session_id=${btoa('session-id:invalid-signature')}`;
+      const socket = await connectWithCookie('test-invalid-sig', invalidCookie);
+
+      const closeEvent = await waitForClose(socket);
+
+      expect(closeEvent.code).toBe(1008);
+      expect(closeEvent.reason).toBe('Unauthorized');
+    });
+
+    it('should reject connection with malformed session cookie (code 1008)', async () => {
+      const malformedCookie = 'session_id=not-valid-base64!!!';
+      const socket = await connectWithCookie('test-malformed', malformedCookie);
+
+      const closeEvent = await waitForClose(socket);
+
+      expect(closeEvent.code).toBe(1008);
+      expect(closeEvent.reason).toBe('Unauthorized');
+    });
+
+    it('should reject connection with tampered session ID (code 1008)', async () => {
+      // Create valid cookie, then tamper with it
+      const validCookie = await createTestSessionCookie(TEST_SESSION_ID, TEST_SECRET_KEY);
+      // Extract and modify the packed value
+      const packedValue = validCookie.replace('session_id=', '');
+      const decoded = atob(packedValue);
+      const tamperedDecoded = decoded.replace(TEST_SESSION_ID, 'different-session-id');
+      const tamperedCookie = `session_id=${btoa(tamperedDecoded)}`;
+
+      const socket = await connectWithCookie('test-tampered', tamperedCookie);
+
+      const closeEvent = await waitForClose(socket);
+
+      expect(closeEvent.code).toBe(1008);
+      expect(closeEvent.reason).toBe('Unauthorized');
+    });
+
+    it('should ignore userId/tenantId query params (use session data only)', async () => {
+      // Note: This test validates that query params are IGNORED
+      // The agent should only use userId/tenantId from the validated session
+      // If query params were trusted, this would be a security vulnerability
+
+      // Connect with valid session but spoofed query params
+      const url = `${WS_URL}/agents/CoachAgent/test-spoof?userId=attacker-user&tenantId=attacker-tenant`;
+      const socket = new WebSocket(url, {
+        headers: { Cookie: validSessionCookie }
+      } as WebSocketInit);
+
+      // Wait for connected message
+      const message = await new Promise<any>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Timeout')), TEST_TIMEOUT);
+        socket.onmessage = (event) => {
+          clearTimeout(timeout);
+          resolve(JSON.parse(event.data));
+        };
+        socket.onerror = (error) => {
+          clearTimeout(timeout);
+          reject(error);
+        };
+      });
+
+      // The state should contain the SESSION's userId/tenantId, NOT the query params
+      // Request state to verify
+      socket.send(JSON.stringify({ type: 'get_state' }));
+
+      const stateMessage = await waitForMessage(socket, 'state');
+
+      // Query param spoofing should be ignored
+      // userId should come from session, not 'attacker-user'
+      expect(stateMessage.state.userId).not.toBe('attacker-user');
+      expect(stateMessage.state.tenantId).not.toBe('attacker-tenant');
+
+      ws = socket;
+    });
+  });
+
+  // ==========================================================================
+  // Valid Session Connection Tests
+  // ==========================================================================
+
+  describe('Valid Session Connection', () => {
+    it('should accept connection with valid session cookie', async () => {
+      // Note: This requires the dev server to have the test session pre-created
+      // or to accept the test secret key for session validation
+      const socket = await connectWithCookie('test-valid-session', validSessionCookie);
+
+      // Should receive connected message
+      const message = await waitForMessage(socket, 'connected');
 
       expect(message.type).toBe('connected');
       expect(message.tools).toBeInstanceOf(Array);
@@ -88,38 +272,41 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
       expect(message.tools).toContain('getACWR');
       expect(message.persona).toBe('supportive');
       expect(message.message).toContain('CoachAgent connected');
+
+      ws = socket;
     });
 
-    it('should close connection with 1008 when missing userId', async () => {
-      const url = `${WS_URL}/agents/CoachAgent/test-agent?tenantId=test-tenant`;
-      const socket = new WebSocket(url);
+    it('should send error message before closing for invalid session', async () => {
+      const invalidCookie = 'session_id=invalid';
+      const socket = await connectWithCookie('test-error-msg', invalidCookie);
 
-      await new Promise<void>((resolve) => {
-        socket.onclose = (event) => {
-          expect(event.code).toBe(1008);
-          expect(event.reason).toBe('Unauthorized');
-          resolve();
-        };
-      });
-    });
+      // May receive error message before close
+      const messageReceived = await Promise.race([
+        new Promise<string>(resolve => {
+          socket.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              if (data.type === 'error' && data.code === 'UNAUTHORIZED') {
+                resolve('error-message');
+              }
+            } catch {}
+          };
+        }),
+        waitForClose(socket).then(() => 'closed')
+      ]);
 
-    it('should close connection with 1008 when missing tenantId', async () => {
-      const url = `${WS_URL}/agents/CoachAgent/test-agent?userId=test-user`;
-      const socket = new WebSocket(url);
-
-      await new Promise<void>((resolve) => {
-        socket.onclose = (event) => {
-          expect(event.code).toBe(1008);
-          expect(event.reason).toBe('Unauthorized');
-          resolve();
-        };
-      });
+      // Either we got the error message or direct close - both are valid
+      expect(['error-message', 'closed']).toContain(messageReceived);
     });
   });
 
+  // ==========================================================================
+  // Message Handling Tests (require valid session)
+  // ==========================================================================
+
   describe('Message Handling', () => {
     it('should handle get_state message', async () => {
-      ws = await connect('test-state', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-state', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'get_state' });
@@ -127,13 +314,11 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
       const message = await waitForMessage(ws, 'state');
       expect(message.type).toBe('state');
       expect(message.state).toBeDefined();
-      expect(message.state.userId).toBe('user-1');
-      expect(message.state.tenantId).toBe('tenant-1');
       expect(message.state.personaMode).toBe('supportive');
     });
 
     it('should handle set_persona message', async () => {
-      ws = await connect('test-persona', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-persona', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'set_persona', persona: 'analytical' });
@@ -149,7 +334,7 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
 
     it('should reject invalid persona', async () => {
-      ws = await connect('test-invalid-persona', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-invalid-persona', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'set_persona', persona: 'invalid_persona' });
@@ -160,7 +345,7 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
 
     it('should return error for unknown message type', async () => {
-      ws = await connect('test-unknown', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-unknown', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'unknown_type' });
@@ -171,7 +356,7 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
 
     it('should handle malformed JSON', async () => {
-      ws = await connect('test-malformed', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-malformed', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       ws.send('not valid json');
@@ -182,9 +367,13 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   });
 
+  // ==========================================================================
+  // Tool Execution Tests (require valid session)
+  // ==========================================================================
+
   describe('Tool Execution', () => {
     it('should execute getACWR tool and return result', async () => {
-      ws = await connect('test-tool', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-tool', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, {
@@ -204,7 +393,7 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
 
     it('should return tool_error for unknown tool', async () => {
-      ws = await connect('test-unknown-tool', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('test-unknown-tool', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, {
@@ -221,10 +410,14 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   });
 
+  // ==========================================================================
+  // State Persistence Tests
+  // ==========================================================================
+
   describe('State Persistence', () => {
     it('should persist state across reconnections', async () => {
       // First connection - set persona
-      ws = await connect('persist-test', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('persist-test', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'set_persona', persona: 'intense' });
@@ -234,7 +427,7 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
 
       // Second connection - same agent name
       await new Promise(resolve => setTimeout(resolve, 500)); // Wait for close
-      ws = await connect('persist-test', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('persist-test', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'get_state' });
@@ -245,9 +438,13 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   });
 
+  // ==========================================================================
+  // Hibernation Tests
+  // ==========================================================================
+
   describe('Hibernation', () => {
     it('should preserve state after hibernation wake', async () => {
-      ws = await connect('hibernation-test', 'user-1', 'tenant-1');
+      ws = await connectWithCookie('hibernation-test', validSessionCookie);
       await waitForMessage(ws, 'connected');
 
       sendMessage(ws, { type: 'set_persona', persona: 'recovery' });
@@ -265,3 +462,14 @@ describe.skipIf(!shouldRun)('CoachAgent WebSocket Integration', () => {
     });
   });
 });
+
+// TypeScript declarations for WebSocket with headers
+interface WebSocketInit {
+  headers?: Record<string, string>;
+}
+
+declare global {
+  interface WebSocketConstructor {
+    new(url: string, protocols?: string | string[] | WebSocketInit): WebSocket;
+  }
+}

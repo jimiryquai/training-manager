@@ -1,7 +1,7 @@
 ---
 title: Harden Multi-Tenancy & Error Handling (Phase 1 Security Fix)
 type: fix
-status: active
+status: complete
 date: 2026-04-03
 origin: docs/ideation/2026-04-03-cleanup-sweep-ideation.md
 ---
