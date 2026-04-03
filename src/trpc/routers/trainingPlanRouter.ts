@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router } from '../trpc';
 import { protectedProcedure } from '../trpc';
+import { TRPCError } from '@trpc/server';
 import {
   createTrainingPlan,
   getTrainingPlanById,
@@ -51,8 +52,19 @@ export const trainingPlanRouter = router({
   createPlan: protectedProcedure
     .input(createTrainingPlanSchema)
     .mutation(async ({ ctx, input }) => {
+      // Only admin users can create system templates
+      if (input.is_system_template && ctx.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can create system templates',
+        });
+      }
+
+      // System templates have null tenant_id, regular plans use ctx.tenantId
+      const tenantId = input.is_system_template ? null : ctx.tenantId;
+
       return createTrainingPlan(ctx.db, {
-        tenant_id: ctx.tenantId,
+        tenant_id: tenantId,
         name: input.name,
         is_system_template: input.is_system_template ? 1 : 0,
       });

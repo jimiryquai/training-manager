@@ -32,6 +32,7 @@ export function createTRPCHandler(opts: CreateHandlerOptions) {
             session,
             tenantId: session.tenantId,
             userId: session.userId,
+            role: session.role,
             db: opts.db,
           };
         }

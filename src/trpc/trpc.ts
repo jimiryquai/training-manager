@@ -8,7 +8,7 @@ export const router = t.router;
 export const publicProcedure = t.procedure;
 
 export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
-  if (!ctx.session || !ctx.tenantId || !ctx.userId) {
+  if (!ctx.session || !ctx.tenantId || !ctx.userId || !ctx.role) {
     throw new TRPCError({
       code: 'UNAUTHORIZED',
       message: 'You must be logged in to access this resource',
@@ -22,6 +22,7 @@ export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
         session: ctx.session,
         tenantId: ctx.tenantId,
         userId: ctx.userId,
+        role: ctx.role,
       },
     });
   } catch (error) {
