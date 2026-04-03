@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database, ExerciseType, BenchmarkUnit, UserBenchmarkTable } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 
 // ============================================================================
 // Exercise Dictionary Service
@@ -30,8 +31,8 @@ export async function createExercise(
   input: CreateExerciseInput
 ): Promise<ExerciseDictionaryRecord | undefined> {
   return wrapDatabaseError('createExercise', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
 
     const result = await db
       .insertInto('exercise_dictionary')
@@ -179,7 +180,7 @@ export async function updateExercise(
   input: UpdateExerciseInput
 ): Promise<ExerciseDictionaryRecord | undefined> {
   return wrapDatabaseError('updateExercise', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.name !== undefined) updates.name = input.name;
@@ -252,8 +253,8 @@ export async function createUserBenchmark(
   input: CreateUserBenchmarkInput
 ): Promise<UserBenchmarkRecord | undefined> {
   return wrapDatabaseError('createUserBenchmark', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
 
     const result = await db
       .insertInto('user_benchmarks')
@@ -284,7 +285,7 @@ export async function upsertUserBenchmark(
   input: CreateUserBenchmarkInput
 ): Promise<UserBenchmarkRecord | undefined> {
   return wrapDatabaseError('upsertUserBenchmark', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
 
     const existing = await db
       .selectFrom('user_benchmarks')
@@ -310,7 +311,7 @@ export async function upsertUserBenchmark(
       return result;
     }
 
-    const id = crypto.randomUUID();
+    const id = createId();
     const result = await db
       .insertInto('user_benchmarks')
       .values({
@@ -442,7 +443,7 @@ export async function updateUserBenchmark(
   input: UpdateUserBenchmarkInput
 ): Promise<UserBenchmarkRecord | undefined> {
   return wrapDatabaseError('updateUserBenchmark', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.benchmark_name !== undefined) updates.benchmark_name = input.benchmark_name;

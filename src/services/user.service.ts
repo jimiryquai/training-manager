@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database, UserTable, UserRole } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 
 export interface CreateUserInput {
   id?: string;
@@ -27,8 +28,8 @@ export async function createUser(
   input: CreateUserInput
 ): Promise<UserRecord | undefined> {
   return wrapDatabaseError('createUser', async () => {
-    const id = input.id ?? crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = input.id ?? createId();
+    const now = nowISO();
 
     const result = await db
       .insertInto('user')
@@ -148,7 +149,7 @@ export async function updateUser(
   input: UpdateUserInput
 ): Promise<UserRecord | undefined> {
   return wrapDatabaseError('updateUser', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.email !== undefined) updates.email = input.email;

@@ -3,7 +3,6 @@ import { Kysely } from 'kysely';
 import { D1Dialect } from 'kysely-d1';
 import type { Database } from '../db/schema';
 import {
-  createTenantSettings,
   createUser,
   createDailyWellness,
   createWorkoutSession,
@@ -213,13 +212,8 @@ export default async function seed() {
   // ==========================================================================
   // PHASE 2: Create tenant settings
   // ==========================================================================
-  console.log('🏢 Creating tenant settings...');
-  await createTenantSettings(db, {
-    tenant_id: TENANT_ID,
-    organization_name: 'Legacy Data Import Organization',
-    timezone: 'America/New_York',
-    default_barbell_rounding: 2.5,
-  });
+  // NOTE: tenant_settings table exists but has no production consumers yet.
+  // Skipping tenant settings creation in seed.
 
   // ==========================================================================
   // PHASE 3: Map Athletes to User and UserBenchmark tables

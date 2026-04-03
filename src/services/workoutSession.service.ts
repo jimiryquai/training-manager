@@ -1,6 +1,7 @@
 import type { Kysely } from 'kysely';
 import type { Database, WorkoutSessionTable } from '../db/schema';
 import { wrapDatabaseError } from './errors';
+import { createId, nowISO } from './helpers';
 
 export interface CreateWorkoutSessionInput {
   tenant_id: string;
@@ -37,8 +38,8 @@ export async function createWorkoutSession(
   input: CreateWorkoutSessionInput
 ): Promise<WorkoutSessionRecord | undefined> {
   return wrapDatabaseError('createWorkoutSession', async () => {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
+    const id = createId();
+    const now = nowISO();
     const training_load = calculateTrainingLoad(input.duration_minutes, input.srpe);
 
     const result = await db
@@ -80,7 +81,7 @@ export async function updateWorkoutSession(
   input: UpdateWorkoutSessionInput
 ): Promise<WorkoutSessionRecord | undefined> {
   return wrapDatabaseError('updateWorkoutSession', async () => {
-    const now = new Date().toISOString();
+    const now = nowISO();
     const updates: Record<string, unknown> = { updated_at: now };
 
     if (input.duration_minutes !== undefined) {
@@ -182,7 +183,7 @@ export async function createWorkoutSessionViaAgent(
   }
 ): Promise<WorkoutSessionRecord | undefined> {
   const agentLog = JSON.stringify({
-    timestamp: new Date().toISOString(),
+    timestamp: nowISO(),
     action: 'create_workout_session',
     reasoning: input.agent_reasoning,
     original_input: {
@@ -221,7 +222,7 @@ export async function markWorkoutAsVoiceEntry(
   if (!existing) return undefined;
 
   const agentLog = JSON.stringify({
-    timestamp: new Date().toISOString(),
+    timestamp: nowISO(),
     action: 'modify_workout_session',
     reasoning: input.agent_reasoning,
     modifications: input.modifications,

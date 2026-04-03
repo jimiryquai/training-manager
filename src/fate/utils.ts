@@ -15,7 +15,7 @@ export function generateSelectPaths(view: AnyDataView, prefix = ''): string[] {
   return paths;
 }
 
-interface ConnectionResult<T> {
+export interface ConnectionResult<T> {
   items: Array<{ cursor: string; node: T }>;
   pagination: {
     hasNext: boolean;
