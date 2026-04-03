@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { router } from '../trpc';
 import { protectedProcedure } from '../trpc';
+import { TRPCError } from '@trpc/server';
 import {
   createExercise,
   getExercisesByCategory,
@@ -74,6 +75,13 @@ export const libraryRouter = router({
     .input(addExerciseSchema)
     .mutation(async ({ ctx, input }) => {
       // Only admin users can create system templates
+      if (input.is_system_template && ctx.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only admins can create system templates',
+        });
+      }
+
       const tenantId = input.is_system_template ? null : ctx.tenantId;
 
       return createExercise(ctx.db, {

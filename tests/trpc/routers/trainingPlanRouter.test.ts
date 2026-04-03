@@ -43,6 +43,61 @@ describe('trainingPlanRouter - Integration Tests', () => {
     });
   });
 
+  // ===========================================================================
+  // SYSTEM TEMPLATE AUTHORIZATION (SECURITY)
+  // ===========================================================================
+
+  describe('System Template Authorization', () => {
+    it('should allow admin to create system template plans', async () => {
+      const result = await vitestInvoke<any>('test_tp_createPlanWithRole', {
+        tenant_id: TEST_TENANT_A,
+        name: 'Official 5/3/1 Program',
+        is_system_template: true,
+        role: 'admin',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.tenant_id).toBeNull(); // System templates have null tenant
+      expect(result.is_system_template).toBe(1);
+    });
+
+    it('should reject athlete attempt to create system template plan with FORBIDDEN', async () => {
+      await expect(
+        vitestInvoke('test_tp_createPlanWithRole', {
+          tenant_id: TEST_TENANT_A,
+          name: 'Unauthorized System Plan',
+          is_system_template: true,
+          role: 'athlete',
+        })
+      ).rejects.toThrow('Only admins can create system templates');
+    });
+
+    it('should allow athlete to create regular tenant plans', async () => {
+      const result = await vitestInvoke<any>('test_tp_createPlanWithRole', {
+        tenant_id: TEST_TENANT_A,
+        name: 'My Custom Plan',
+        is_system_template: false,
+        role: 'athlete',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.tenant_id).toBe(TEST_TENANT_A);
+      expect(result.is_system_template).toBe(0);
+    });
+
+    it('should allow athlete to create plans without specifying is_system_template', async () => {
+      const result = await vitestInvoke<any>('test_tp_createPlanWithRole', {
+        tenant_id: TEST_TENANT_A,
+        name: 'Default Plan',
+        role: 'athlete',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.tenant_id).toBe(TEST_TENANT_A);
+      expect(result.is_system_template).toBe(0);
+    });
+  });
+
   describe('getPlan', () => {
     it('should return plan by id for correct tenant', async () => {
       const created = await vitestInvoke<any>('test_tp_createPlan', {

@@ -77,6 +77,7 @@ export default defineApp([
         ctx.session = {
           userId: "seed-user-001",
           tenantId: "seed-tenant-001",
+          role: "admin", // Dev bypass assumes admin role
         };
       }
     }

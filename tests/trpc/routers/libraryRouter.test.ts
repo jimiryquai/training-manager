@@ -414,6 +414,68 @@ describe('libraryRouter Integration Tests', () => {
   });
 
   // ===========================================================================
+  // SYSTEM TEMPLATE AUTHORIZATION (SECURITY)
+  // ===========================================================================
+
+  describe('System Template Authorization', () => {
+    it('should allow admin to create system template exercises', async () => {
+      const result = await vitestInvoke<any>('test_library_addExerciseWithRole', {
+        tenant_id: TEST_TENANT,
+        name: 'System Push-up',
+        movement_category: 'push',
+        exercise_type: 'dynamic',
+        is_system_template: true,
+        role: 'admin',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.name).toBe('System Push-up');
+      expect(result.tenant_id).toBeNull(); // System template has null tenant
+    });
+
+    it('should deny athlete from creating system template exercises', async () => {
+      await expect(
+        vitestInvoke('test_library_addExerciseWithRole', {
+          tenant_id: TEST_TENANT,
+          name: 'Unauthorized System Exercise',
+          movement_category: 'push',
+          exercise_type: 'dynamic',
+          is_system_template: true,
+          role: 'athlete',
+        })
+      ).rejects.toThrow('Only admins can create system templates');
+    });
+
+    it('should allow athlete to create regular tenant exercises', async () => {
+      const result = await vitestInvoke<any>('test_library_addExerciseWithRole', {
+        tenant_id: TEST_TENANT,
+        name: 'My Custom Exercise',
+        movement_category: 'push',
+        exercise_type: 'dynamic',
+        is_system_template: false,
+        role: 'athlete',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.name).toBe('My Custom Exercise');
+      expect(result.tenant_id).toBe(TEST_TENANT);
+    });
+
+    it('should allow athlete to create exercise without specifying is_system_template', async () => {
+      const result = await vitestInvoke<any>('test_library_addExerciseWithRole', {
+        tenant_id: TEST_TENANT,
+        name: 'Default Exercise',
+        movement_category: 'push',
+        exercise_type: 'dynamic',
+        role: 'athlete',
+      });
+
+      expect(result).toBeDefined();
+      expect(result.tenant_id).toBe(TEST_TENANT);
+    });
+  });
+
+  // ===========================================================================
   // MULTI-TENANT ISOLATION
   // ===========================================================================
 
