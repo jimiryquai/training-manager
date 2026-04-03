@@ -4,6 +4,17 @@ import {
     getACWRTrendSummary
 } from "../services/acwr.service";
 import {
+    getUserById,
+    getUserByExternalAuthId,
+    getUserByEmail,
+    getUsersByTenant,
+    updateUser,
+    deactivateUser as deactivateUserService,
+    reactivateUser as reactivateUserService,
+    linkExternalAuth as linkExternalAuthService,
+    deleteUser as deleteUserFromService,
+} from "../services/user.service";
+import {
     createWorkoutSession,
     createWorkoutSessionViaAgent,
     updateWorkoutSession,
@@ -242,10 +253,71 @@ export async function test_getAverageWellnessScores(input: {
 // Ensure the db is clean for testing
 export async function test_cleanDatabase(tenantId: string) {
     const db = getDb();
+    // Delete in dependency order to respect FK constraints
+    await db.deleteFrom('session_exercise').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('training_session').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('training_plan').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('workout_session').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('daily_wellness').where('tenant_id', '=', tenantId).execute();
-    await db.deleteFrom('exercise_dictionary').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('user_benchmarks').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('exercise_dictionary').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('user').where('tenant_id', '=', tenantId).execute();
+}
+
+// ============================================================================
+// User Service Test Utilities
+// ============================================================================
+
+export async function test_getUserById(input: { id: string; tenant_id?: string }) {
+    const db = getDb();
+    return await getUserById(db, input);
+}
+
+export async function test_getUserByExternalAuthId(input: { external_auth_id: string }) {
+    const db = getDb();
+    return await getUserByExternalAuthId(db, input);
+}
+
+export async function test_getUserByEmail(input: { email: string; tenant_id?: string }) {
+    const db = getDb();
+    return await getUserByEmail(db, input);
+}
+
+export async function test_getUsersByTenant(input: { tenant_id: string; is_active?: number }) {
+    const db = getDb();
+    return await getUsersByTenant(db, input);
+}
+
+export async function test_updateUser(input: {
+    id: string;
+    tenant_id?: string;
+    email?: string;
+    external_auth_id?: string | null;
+    role?: 'athlete' | 'admin';
+    is_active?: number;
+    display_name?: string | null;
+}) {
+    const db = getDb();
+    return await updateUser(db, input);
+}
+
+export async function test_deactivateUser(input: { id: string; tenant_id?: string }) {
+    const db = getDb();
+    return await deactivateUserService(db, input);
+}
+
+export async function test_reactivateUser(input: { id: string; tenant_id?: string }) {
+    const db = getDb();
+    return await reactivateUserService(db, input);
+}
+
+export async function test_linkExternalAuth(input: {
+    user_id: string;
+    external_auth_id: string;
+    tenant_id?: string;
+}) {
+    const db = getDb();
+    return await linkExternalAuthService(db, input);
 }
 
 export async function test_library_addExercise(input: {
@@ -478,6 +550,139 @@ export async function test_upsertUserBenchmark(input: {
         })
         .returningAll()
         .executeTakeFirst();
+}
+
+// ============================================================================
+// Exercise Dictionary Test Utilities
+// ============================================================================
+
+export async function test_getExerciseById(input: { id: string; tenant_id?: string | null }) {
+    const db = getDb();
+    const { getExerciseById } = await import('../services/exerciseDictionary.service');
+    return await getExerciseById(db, input);
+}
+
+export async function test_getExercisesByCategory(input: { tenant_id: string | null; movement_category: string }) {
+    const db = getDb();
+    const { getExercisesByCategory } = await import('../services/exerciseDictionary.service');
+    return await getExercisesByCategory(db, input);
+}
+
+export async function test_getExercisesByBenchmarkTarget(input: { benchmark_target: string; tenant_id?: string | null }) {
+    const db = getDb();
+    const { getExercisesByBenchmarkTarget } = await import('../services/exerciseDictionary.service');
+    return await getExercisesByBenchmarkTarget(db, input);
+}
+
+export async function test_getSystemExercises() {
+    const db = getDb();
+    const { getSystemExercises } = await import('../services/exerciseDictionary.service');
+    return await getSystemExercises(db);
+}
+
+export async function test_getExercisesForTenant(tenant_id: string) {
+    const db = getDb();
+    const { getExercisesForTenant } = await import('../services/exerciseDictionary.service');
+    return await getExercisesForTenant(db, tenant_id);
+}
+
+export async function test_updateExercise(input: {
+    id: string;
+    tenant_id: string | null;
+    name?: string;
+    movement_category?: string;
+    exercise_type?: string;
+    benchmark_target?: string | null;
+    conversion_factor?: number | null;
+}) {
+    const db = getDb();
+    const { updateExercise } = await import('../services/exerciseDictionary.service');
+    return await updateExercise(db, input as any);
+}
+
+export async function test_deleteExercise(input: { id: string; tenant_id: string | null }) {
+    const db = getDb();
+    const { deleteExercise } = await import('../services/exerciseDictionary.service');
+    return await deleteExercise(db, input);
+}
+
+export async function test_createUserBenchmark(input: {
+    tenant_id: string;
+    user_id: string;
+    benchmark_name: string;
+    benchmark_value?: number | null;
+    benchmark_unit?: string | null;
+    training_max_percentage?: number;
+}) {
+    const db = getDb();
+    const { createUserBenchmark } = await import('../services/exerciseDictionary.service');
+    return await createUserBenchmark(db, input as any);
+}
+
+export async function test_getUserBenchmark(input: { tenant_id: string; user_id: string; benchmark_name: string }) {
+    const db = getDb();
+    const { getUserBenchmark } = await import('../services/exerciseDictionary.service');
+    return await getUserBenchmark(db, input);
+}
+
+export async function test_updateUserBenchmark(input: {
+    id: string;
+    tenant_id: string;
+    user_id?: string;
+    benchmark_name?: string;
+    benchmark_value?: number | null;
+    benchmark_unit?: string | null;
+    training_max_percentage?: number;
+}) {
+    const db = getDb();
+    const { updateUserBenchmark } = await import('../services/exerciseDictionary.service');
+    return await updateUserBenchmark(db, input as any);
+}
+
+export async function test_deleteUserBenchmark(input: { id: string; tenant_id: string; user_id?: string }) {
+    const db = getDb();
+    const { deleteUserBenchmark } = await import('../services/exerciseDictionary.service');
+    return await deleteUserBenchmark(db, input);
+}
+
+export async function test_deleteUserBenchmarkByName(input: { tenant_id: string; user_id: string; benchmark_name: string }) {
+    const db = getDb();
+    const { deleteUserBenchmarkByName } = await import('../services/exerciseDictionary.service');
+    return await deleteUserBenchmarkByName(db, input);
+}
+
+export async function test_getUserBenchmarkById(input: { id: string; tenant_id: string; user_id?: string }) {
+    const db = getDb();
+    const { getUserBenchmarkById } = await import('../services/exerciseDictionary.service');
+    return await getUserBenchmarkById(db, input);
+}
+
+export async function test_calculateTrainingMax(input: {
+    benchmark_value: number;
+    training_max_percentage: number;
+}) {
+    const { calculateTrainingMax } = await import('../services/exerciseDictionary.service');
+    // Build a minimal benchmark record
+    const benchmark = {
+        id: 'test-benchmark',
+        tenant_id: 'test-tenant',
+        user_id: 'test-user',
+        benchmark_name: 'test',
+        benchmark_value: input.benchmark_value,
+        benchmark_unit: 'kg' as const,
+        training_max_percentage: input.training_max_percentage,
+    };
+    return calculateTrainingMax(benchmark);
+}
+
+export async function test_getTrainingMaxForExercise(input: {
+    tenant_id: string;
+    user_id: string;
+    exercise_id: string;
+}) {
+    const db = getDb();
+    const { getTrainingMaxForExercise } = await import('../services/exerciseDictionary.service');
+    return await getTrainingMaxForExercise(db, input);
 }
 
 // ============================================================================
