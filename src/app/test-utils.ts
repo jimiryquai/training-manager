@@ -45,6 +45,7 @@ import type {
     UpdateDailyWellnessInput
 } from "../services/dailyWellness.service";
 import { libraryRouter } from "../trpc/routers/libraryRouter";
+import { trainingSessionRouter } from "../trpc/routers/trainingSessionRouter";
 import type { ExerciseType } from "../db/schema";
 
 function getDb() {
@@ -361,6 +362,7 @@ export async function test_library_saveBenchmark(input: {
     benchmark_name: string;
     benchmark_value: number;
     benchmark_unit: string;
+    training_max_percentage?: number;
 }) {
     const db = getDb();
     const caller = libraryRouter.createCaller({
@@ -373,7 +375,112 @@ export async function test_library_saveBenchmark(input: {
         benchmark_name: input.benchmark_name,
         benchmark_value: input.benchmark_value,
         benchmark_unit: input.benchmark_unit as any,
+        training_max_percentage: input.training_max_percentage,
     });
+}
+
+export async function test_library_updateExercise(input: {
+    tenant_id: string;
+    id: string;
+    name?: string;
+    movement_category?: string;
+    exercise_type?: string;
+    benchmark_target?: string | null;
+    conversion_factor?: number | null;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.updateExercise({
+        id: input.id,
+        name: input.name,
+        movement_category: input.movement_category,
+        exercise_type: input.exercise_type as ExerciseType,
+        benchmark_target: input.benchmark_target,
+        conversion_factor: input.conversion_factor,
+    });
+}
+
+export async function test_library_deleteExercise(input: {
+    tenant_id: string;
+    id: string;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.deleteExercise({ id: input.id });
+}
+
+export async function test_library_getExercisesByBenchmark(input: {
+    tenant_id: string;
+    benchmark_target: string;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.getExercisesByBenchmark({ benchmark_target: input.benchmark_target });
+}
+
+export async function test_library_getSystemExercises(input: { tenant_id: string }) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.getSystemExercises();
+}
+
+export async function test_library_getUserBenchmark(input: {
+    tenant_id: string;
+    benchmark_name: string;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.getUserBenchmark({ benchmark_name: input.benchmark_name });
+}
+
+export async function test_library_getUserBenchmarks(input: { tenant_id: string }) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.getUserBenchmarks();
+}
+
+export async function test_library_getTrainingMaxForExercise(input: {
+    tenant_id: string;
+    exercise_id: string;
+}) {
+    const db = getDb();
+    const caller = libraryRouter.createCaller({
+        session: { userId: 'test-user', tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: 'test-user',
+        db
+    });
+    return await caller.getTrainingMaxForExercise({ exercise_id: input.exercise_id });
 }
 
 // ============================================================================
@@ -1134,6 +1241,139 @@ export function test_extractSessionId(cookieHeader: string): string | null {
 }
 
 // ============================================================================
+// Training Session Router Test Utilities
+// ============================================================================
+
+function createSessionCaller(tenantId: string, userId: string = 'test-user') {
+    const db = getDb();
+    return trainingSessionRouter.createCaller({
+        session: { userId, tenantId },
+        tenantId,
+        userId,
+        db,
+    });
+}
+
+export async function test_ts_createSession(input: {
+    tenant_id: string;
+    plan_id: string;
+    block_name?: string;
+    week_number?: number;
+    day_of_week?: string;
+    session_name?: string;
+}) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.createSession({
+        plan_id: input.plan_id,
+        block_name: input.block_name,
+        week_number: input.week_number,
+        day_of_week: input.day_of_week,
+        session_name: input.session_name,
+    });
+}
+
+export async function test_ts_getSession(input: { tenant_id: string; id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getSession({ id: input.id });
+}
+
+export async function test_ts_getSessionsByPlan(input: { tenant_id: string; plan_id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getSessionsByPlan({ plan_id: input.plan_id });
+}
+
+export async function test_ts_getSessionsByWeek(input: { tenant_id: string; plan_id: string; week_number: number }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getSessionsByWeek({ plan_id: input.plan_id, week_number: input.week_number });
+}
+
+export async function test_ts_updateSession(input: {
+    tenant_id: string;
+    id: string;
+    block_name?: string | null;
+    week_number?: number | null;
+    day_of_week?: string | null;
+    session_name?: string | null;
+}) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.updateSession({
+        id: input.id,
+        block_name: input.block_name,
+        week_number: input.week_number,
+        day_of_week: input.day_of_week,
+        session_name: input.session_name,
+    });
+}
+
+export async function test_ts_deleteSession(input: { tenant_id: string; id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.deleteSession({ id: input.id });
+}
+
+export async function test_ts_getFullSession(input: { tenant_id: string; id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getFullSession({ id: input.id });
+}
+
+export async function test_ts_createExercise(input: {
+    tenant_id: string;
+    session_id: string;
+    exercise_dictionary_id: string;
+    circuit_group?: string;
+    order_in_session: number;
+    scheme_name?: string;
+    coach_notes?: string;
+}) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.createExercise({
+        session_id: input.session_id,
+        exercise_dictionary_id: input.exercise_dictionary_id,
+        circuit_group: input.circuit_group,
+        order_in_session: input.order_in_session,
+        scheme_name: input.scheme_name,
+        coach_notes: input.coach_notes,
+    });
+}
+
+export async function test_ts_getExercise(input: { tenant_id: string; id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getExercise({ id: input.id });
+}
+
+export async function test_ts_getExercisesBySession(input: { tenant_id: string; session_id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getExercisesBySession({ session_id: input.session_id });
+}
+
+export async function test_ts_getExercisesGrouped(input: { tenant_id: string; session_id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.getExercisesGrouped({ session_id: input.session_id });
+}
+
+export async function test_ts_updateExercise(input: {
+    tenant_id: string;
+    id: string;
+    circuit_group?: string | null;
+    order_in_session?: number;
+    scheme_name?: string | null;
+    coach_notes?: string | null;
+}) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.updateExercise({
+        id: input.id,
+        circuit_group: input.circuit_group,
+        order_in_session: input.order_in_session,
+        scheme_name: input.scheme_name,
+        coach_notes: input.coach_notes,
+    });
+}
+
+export async function test_ts_deleteExercise(input: { tenant_id: string; id: string }) {
+    const caller = createSessionCaller(input.tenant_id);
+    return await caller.deleteExercise({ id: input.id });
+}
+
+// ============================================================================
 // CORS Test Utilities (for tRPC handler)
 // ============================================================================
 
@@ -1258,4 +1498,171 @@ export function test_verifyCORSHeaders(headers: Record<string, string>): {
  */
 export function test_getExpectedCORSHeaders(): Record<string, string> {
     return { ...CORS_HEADERS };
+}
+
+// ============================================================================
+// Training Plan Router Test Utilities
+// ============================================================================
+
+import { trainingPlanRouter } from '../trpc/routers/trainingPlanRouter';
+
+/**
+ * Create a caller for the training plan router with proper context
+ */
+function createTrainingPlanCaller(tenantId: string, userId: string = 'test-user') {
+    const db = getDb();
+    return trainingPlanRouter.createCaller({
+        session: { userId, tenantId },
+        tenantId,
+        userId,
+        db,
+    });
+}
+
+export async function test_tp_createPlan(input: {
+    tenant_id: string;
+    name: string;
+    is_system_template?: boolean;
+}) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.createPlan({
+        name: input.name,
+        is_system_template: input.is_system_template,
+    });
+}
+
+export async function test_tp_getPlan(input: { tenant_id: string; id: string }) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.getPlan({ id: input.id });
+}
+
+export async function test_tp_getSystemPlans(input: { tenant_id: string }) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.getSystemPlans();
+}
+
+export async function test_tp_getPlansForTenant(input: { tenant_id: string }) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.getPlansForTenant();
+}
+
+export async function test_tp_updatePlan(input: {
+    tenant_id: string;
+    id: string;
+    name?: string;
+}) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.updatePlan({
+        id: input.id,
+        name: input.name,
+    });
+}
+
+export async function test_tp_deletePlan(input: { tenant_id: string; id: string }) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.deletePlan({ id: input.id });
+}
+
+export async function test_tp_clonePlan(input: {
+    tenant_id: string;
+    plan_id: string;
+    new_name?: string;
+}) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.clonePlan({
+        plan_id: input.plan_id,
+        new_name: input.new_name,
+    });
+}
+
+export async function test_tp_getFullPlan(input: { tenant_id: string; id: string }) {
+    const caller = createTrainingPlanCaller(input.tenant_id);
+    return await caller.getFullPlan({ id: input.id });
+}
+
+// ============================================================================
+// Wellness Router Test Utilities
+// ============================================================================
+
+const WELLNESS_TEST_USER = 'wellness-test-user';
+
+export async function test_w_logDailyMetrics(input: {
+    tenant_id: string;
+    date: string;
+    rhr: number;
+    hrv_rmssd: number;
+    sleep_score?: number;
+    fatigue_score?: number;
+    muscle_soreness_score?: number;
+    stress_score?: number;
+    mood_score?: number;
+    diet_score?: number;
+    data_source?: 'apple_health' | 'manual_slider' | 'agent_voice';
+}) {
+    const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
+    const db = getDb();
+    const caller = wellnessRouter.createCaller({
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: WELLNESS_TEST_USER,
+        db,
+    });
+    return await caller.logDailyMetrics(input);
+}
+
+export async function test_w_getMetricsByDate(input: {
+    tenant_id: string;
+    date: string;
+}) {
+    const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
+    const db = getDb();
+    const caller = wellnessRouter.createCaller({
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: WELLNESS_TEST_USER,
+        db,
+    });
+    return await caller.getMetricsByDate({ date: input.date });
+}
+
+export async function test_w_getMetricsByDateRange(input: {
+    tenant_id: string;
+    start_date: string;
+    end_date: string;
+}) {
+    const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
+    const db = getDb();
+    const caller = wellnessRouter.createCaller({
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: WELLNESS_TEST_USER,
+        db,
+    });
+    return await caller.getMetricsByDateRange({
+        start_date: input.start_date,
+        end_date: input.end_date,
+    });
+}
+
+export async function test_w_logDailyMetricsViaAgent(input: {
+    tenant_id: string;
+    date: string;
+    rhr?: number;
+    hrv_rmssd?: number;
+    sleep_score?: number;
+    fatigue_score?: number;
+    muscle_soreness_score?: number;
+    stress_score?: number;
+    mood_score?: number;
+    diet_score?: number;
+}) {
+    const { wellnessRouter } = await import('../trpc/routers/wellnessRouter');
+    const db = getDb();
+    const caller = wellnessRouter.createCaller({
+        session: { userId: WELLNESS_TEST_USER, tenantId: input.tenant_id },
+        tenantId: input.tenant_id,
+        userId: WELLNESS_TEST_USER,
+        db,
+    });
+    return await caller.logDailyMetricsViaAgent(input);
 }
