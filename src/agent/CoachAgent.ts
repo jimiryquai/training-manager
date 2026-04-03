@@ -121,6 +121,24 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
       return;
     }
 
+    // Reject obviously fake values (empty strings, 'null', 'undefined', 'test', etc.)
+    const fakePatterns = /^(null|undefined|test|admin|root|\s*)$/i;
+    if (fakePatterns.test(userId) || fakePatterns.test(tenantId)) {
+      connection.send(JSON.stringify({
+        type: 'error',
+        code: 'UNAUTHORIZED',
+        message: 'Invalid userId or tenantId',
+      }));
+      connection.close(1008, 'Unauthorized');
+      return;
+    }
+
+    // TODO: When auth system is productionized, validate the session cookie from
+    // ctx.request.headers against UserSession DO instead of trusting query params.
+    // This prevents impersonation by crafting arbitrary userId/tenantId values.
+
+    console.log(`[CoachAgent] Connection accepted for userId=${userId}, tenantId=${tenantId}`);
+
     this.setState({
       ...this.state,
       userId,
@@ -137,8 +155,6 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
       persona: this.state.personaMode,
       message: 'CoachAgent connected. I am your AI coach - ask me anything about your training!',
     }));
-
-    console.log(`[CoachAgent] Connection established for user ${userId}`);
   }
 
   async onMessage(connection: Connection, message: WSMessage): Promise<void> {
