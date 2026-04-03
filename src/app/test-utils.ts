@@ -349,6 +349,77 @@ export async function test_getTrainingSessionsByPlan(plan_id: string) {
     return await getTrainingSessionsByPlan(db, { plan_id });
 }
 
+export async function test_getTrainingPlanById(input: { id: string; tenant_id?: string | null }) {
+    const db = getDb();
+    const { getTrainingPlanById } = await import('../services/trainingPlan.service');
+    return await getTrainingPlanById(db, input);
+}
+
+export async function test_getTrainingSessionById(input: { id: string; tenant_id?: string | null }) {
+    const db = getDb();
+    const { getTrainingSessionById } = await import('../services/trainingPlan.service');
+    return await getTrainingSessionById(db, input);
+}
+
+export async function test_getTrainingSessionsByWeek(input: { plan_id: string; week_number: number }) {
+    const db = getDb();
+    const { getTrainingSessionsByWeek } = await import('../services/trainingPlan.service');
+    return await getTrainingSessionsByWeek(db, input);
+}
+
+export async function test_createSessionExercise(input: {
+    tenant_id: string | null;
+    session_id: string;
+    exercise_dictionary_id: string;
+    circuit_group?: string | null;
+    order_in_session: number;
+    scheme_name?: string | null;
+    target_sets?: number | null;
+    target_reps?: string | null;
+    target_intensity?: number | null;
+    target_rpe?: number | null;
+    target_tempo?: string | null;
+    target_rest_seconds?: number | null;
+    coach_notes?: string | null;
+}) {
+    const db = getDb();
+    const { createSessionExercise } = await import('../services/trainingPlan.service');
+    return await createSessionExercise(db, input);
+}
+
+export async function test_getSessionExercisesBySession(input: { session_id: string }) {
+    const db = getDb();
+    const { getSessionExercisesBySession } = await import('../services/trainingPlan.service');
+    return await getSessionExercisesBySession(db, input);
+}
+
+export async function test_getSessionExerciseById(input: { id: string; tenant_id?: string | null }) {
+    const db = getDb();
+    const { getSessionExerciseById } = await import('../services/trainingPlan.service');
+    return await getSessionExerciseById(db, input);
+}
+
+export async function test_cleanTrainingPlanData(tenantId: string) {
+    const db = getDb();
+    // Delete in dependency order: exercises -> sessions -> plans
+    await db.deleteFrom('session_exercise').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('training_session').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('training_plan').where('tenant_id', '=', tenantId).execute();
+}
+
+export async function test_createExercise(input: {
+    tenant_id: string | null;
+    name: string;
+    movement_category: string;
+    exercise_type: string;
+    benchmark_target?: string | null;
+    conversion_factor?: number | null;
+}) {
+    const db = getDb();
+    const { createExercise } = await import('../services/exerciseDictionary.service');
+    return await createExercise(db, input as any);
+}
+
 // ============================================================================
 // User Benchmark Test Utilities (for CoachAgent tools)
 // ============================================================================
@@ -407,6 +478,127 @@ export async function test_upsertUserBenchmark(input: {
         })
         .returningAll()
         .executeTakeFirst();
+}
+
+// ============================================================================
+// Error Handling Test Utilities
+// ============================================================================
+
+export async function test_createServiceError(input: { code: string; message: string; cause?: unknown }) {
+    const { ServiceError } = await import('../services/errors');
+    const error = new ServiceError(
+        input.code as 'NOT_FOUND' | 'UNAUTHORIZED' | 'VALIDATION_ERROR' | 'DATABASE_ERROR',
+        input.message,
+        input.cause
+    );
+    return {
+        name: error.name,
+        code: error.code,
+        message: error.message,
+        cause: error.cause,
+    };
+}
+
+export async function test_wrapDatabaseError_success() {
+    const { wrapDatabaseError } = await import('../services/errors');
+    const result = await wrapDatabaseError('testOp', async () => 42);
+    return result;
+}
+
+export async function test_wrapDatabaseError_wrapsUnknown() {
+    const { wrapDatabaseError, ServiceError } = await import('../services/errors');
+    try {
+        await wrapDatabaseError('insertRecord', async () => {
+            throw new Error('sqlite: disk I/O error');
+        });
+        return { threw: false };
+    } catch (error: unknown) {
+        if (error instanceof ServiceError) {
+            return {
+                threw: true,
+                name: error.name,
+                code: error.code,
+                message: error.message,
+                causeMessage: error.cause instanceof Error ? error.cause.message : String(error.cause),
+            };
+        }
+        return { threw: true, unexpectedError: String(error) };
+    }
+}
+
+export async function test_wrapDatabaseError_passesThroughServiceError() {
+    const { wrapDatabaseError, ServiceError } = await import('../services/errors');
+    const originalError = new ServiceError('NOT_FOUND', 'Record not found');
+    try {
+        await wrapDatabaseError('testOp', async () => {
+            throw originalError;
+        });
+        return { threw: false };
+    } catch (error: unknown) {
+        if (error instanceof ServiceError) {
+            return {
+                threw: true,
+                isSameObject: error === originalError,
+                code: error.code,
+                message: error.message,
+            };
+        }
+        return { threw: true, unexpectedError: String(error) };
+    }
+}
+
+export async function test_wrapDatabaseError_wrapsNonError() {
+    const { wrapDatabaseError, ServiceError } = await import('../services/errors');
+    try {
+        await wrapDatabaseError('testOp', async () => {
+            throw 'string error';
+        });
+        return { threw: false };
+    } catch (error: unknown) {
+        if (error instanceof ServiceError) {
+            return {
+                threw: true,
+                code: error.code,
+                message: error.message,
+                cause: String(error.cause),
+            };
+        }
+        return { threw: true, unexpectedError: String(error) };
+    }
+}
+
+export async function test_createDailyWellnessInvalid() {
+    const db = getDb();
+    const { createDailyWellness } = await import('../services/dailyWellness.service');
+    // Trigger a DB error by using empty strings for required fields
+    return await createDailyWellness(db, {
+        tenant_id: '',
+        user_id: '',
+        date: '',
+        rhr: 55,
+        hrv_rmssd: 45,
+    });
+}
+
+export async function test_getWorkoutSessionInvalid() {
+    const db = getDb();
+    const { getWorkoutSessionById } = await import('../services/workoutSession.service');
+    // This should return undefined for non-existent ID
+    return await getWorkoutSessionById(db, { id: 'non-existent-uuid', tenant_id: 'non-existent-tenant' });
+}
+
+export async function test_upsertDailyWellness(input: {
+    tenant_id: string;
+    user_id: string;
+    date: string;
+    rhr: number;
+    hrv_rmssd: number;
+    sleep_score?: number | null;
+    fatigue_score?: number | null;
+}) {
+    const db = getDb();
+    const { upsertDailyWellness } = await import('../services/dailyWellness.service');
+    return await upsertDailyWellness(db, input);
 }
 
 // ============================================================================
