@@ -833,3 +833,224 @@ export function test_buildConversationContext(
         content: m.content,
     }));
 }
+
+// ==============================================================================
+// WebSocket Session Validation Test Utilities
+// ==============================================================================
+
+/**
+ * Convert ArrayBuffer to hex string (mirrors CoachAgent implementation)
+ */
+function arrayBufferToHex(buffer: ArrayBuffer): string {
+    const array = new Uint8Array(buffer);
+    return Array.from(array)
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+}
+
+/**
+ * Sign a session ID using HMAC-SHA256 (mirrors CoachAgent implementation)
+ */
+export async function test_signSessionId(unsignedSessionId: string, secretKey: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+        'raw',
+        encoder.encode(secretKey),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign']
+    );
+    const signatureArrayBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(unsignedSessionId));
+    return arrayBufferToHex(signatureArrayBuffer);
+}
+
+/**
+ * Pack session ID with signature into base64 format
+ */
+export function test_packSessionId(unsignedSessionId: string, signature: string): string {
+    return btoa(`${unsignedSessionId}:${signature}`);
+}
+
+/**
+ * Create a signed session cookie value for WebSocket testing
+ * Returns the full cookie value ready to be set in Cookie header
+ */
+export async function test_createSignedSessionCookie(
+    sessionId: string,
+    secretKey: string
+): Promise<string> {
+    const signature = await test_signSessionId(sessionId, secretKey);
+    const packed = test_packSessionId(sessionId, signature);
+    return `session_id=${packed}`;
+}
+
+/**
+ * Validate a signed session cookie (mirrors CoachAgent validation logic)
+ */
+export async function test_validateSignedSession(
+    packedSessionId: string,
+    secretKey: string
+): Promise<{ valid: boolean; unsignedSessionId: string | null }> {
+    try {
+        const decoded = atob(packedSessionId);
+        const [unsignedSessionId, signature] = decoded.split(':');
+        
+        if (!unsignedSessionId || !signature) {
+            return { valid: false, unsignedSessionId: null };
+        }
+        
+        const computedSignature = await test_signSessionId(unsignedSessionId, secretKey);
+        
+        if (computedSignature !== signature) {
+            return { valid: false, unsignedSessionId: null };
+        }
+        
+        return { valid: true, unsignedSessionId };
+    } catch {
+        return { valid: false, unsignedSessionId: null };
+    }
+}
+
+/**
+ * Extract session_id from cookie header (mirrors CoachAgent implementation)
+ */
+export function test_extractSessionId(cookieHeader: string): string | null {
+    for (const cookie of cookieHeader.split(';')) {
+        const trimmedCookie = cookie.trim();
+        const separatorIndex = trimmedCookie.indexOf('=');
+        if (separatorIndex === -1) continue;
+        const key = trimmedCookie.slice(0, separatorIndex);
+        const value = trimmedCookie.slice(separatorIndex + 1);
+        if (key === 'session_id') {
+            return value;
+        }
+    }
+    return null;
+}
+
+// ============================================================================
+// CORS Test Utilities (for tRPC handler)
+// ============================================================================
+
+const CORS_HEADERS = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST',
+    'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+/**
+ * Test OPTIONS preflight request to verify CORS headers
+ */
+export async function test_corsOptionsPreflight(): Promise<{
+    status: number;
+    headers: Record<string, string>;
+}> {
+    const { createTRPCHandler } = await import('../trpc/handler');
+    const { env } = await import('cloudflare:workers');
+    
+    const db = getDb();
+    const mockSessionStore = {
+        load: async () => null,
+    };
+    
+    const handler = createTRPCHandler({
+        sessionStore: mockSessionStore as any,
+        db,
+    });
+    
+    const request = new Request('http://localhost/trpc/test', {
+        method: 'OPTIONS',
+    });
+    
+    const response = await handler(request);
+    
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+        headers[key] = value;
+    });
+    
+    return {
+        status: response.status,
+        headers,
+    };
+}
+
+/**
+ * Test POST request to verify CORS headers are added to response
+ */
+export async function test_corsPostRequest(input: {
+    body: string;
+    contentType?: string;
+}): Promise<{
+    status: number;
+    headers: Record<string, string>;
+}> {
+    const { createTRPCHandler } = await import('../trpc/handler');
+    
+    const db = getDb();
+    const mockSessionStore = {
+        load: async () => null,
+    };
+    
+    const handler = createTRPCHandler({
+        sessionStore: mockSessionStore as any,
+        db,
+    });
+    
+    const request = new Request('http://localhost/trpc/healthcheck', {
+        method: 'POST',
+        headers: {
+            'Content-Type': input.contentType ?? 'application/json',
+        },
+        body: input.body,
+    });
+    
+    const response = await handler(request);
+    
+    const headers: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+        headers[key] = value;
+    });
+    
+    return {
+        status: response.status,
+        headers,
+    };
+}
+
+/**
+ * Verify CORS headers are present and correct
+ */
+export function test_verifyCORSHeaders(headers: Record<string, string>): {
+    valid: boolean;
+    errors: string[];
+} {
+    const errors: string[] = [];
+    
+    // Check Access-Control-Allow-Origin
+    if (headers['access-control-allow-origin'] !== CORS_HEADERS['Access-Control-Allow-Origin']) {
+        errors.push(`Expected Access-Control-Allow-Origin '${CORS_HEADERS['Access-Control-Allow-Origin']}', got '${headers['access-control-allow-origin']}'`);
+    }
+    
+    // Check Access-Control-Allow-Methods
+    if (headers['access-control-allow-methods'] !== CORS_HEADERS['Access-Control-Allow-Methods']) {
+        errors.push(`Expected Access-Control-Allow-Methods '${CORS_HEADERS['Access-Control-Allow-Methods']}', got '${headers['access-control-allow-methods']}'`);
+    }
+    
+    // Check Access-Control-Allow-Headers
+    if (headers['access-control-allow-headers'] !== CORS_HEADERS['Access-Control-Allow-Headers']) {
+        errors.push(`Expected Access-Control-Allow-Headers '${CORS_HEADERS['Access-Control-Allow-Headers']}', got '${headers['access-control-allow-headers']}'`);
+    }
+    
+    return {
+        valid: errors.length === 0,
+        errors,
+    };
+}
+
+/**
+ * Get expected CORS headers for comparison
+ */
+export function test_getExpectedCORSHeaders(): Record<string, string> {
+    return { ...CORS_HEADERS };
+}
