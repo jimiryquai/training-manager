@@ -7,7 +7,6 @@ import {
   getSessionExercisesBySession,
 } from './sessionExercise.service';
 import {
-  type TrainingSessionRecord,
   type TrainingSessionWithExercises,
   createTrainingSession,
   getTrainingSessionsByPlan,
