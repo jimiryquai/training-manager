@@ -13,8 +13,10 @@ import {
 } from '../services';
 import {
   createTrainingSession,
-  createSessionExercise,
 } from '../services/trainingPlan.service';
+import {
+  createSessionExercise,
+} from '../services/sessionExercise.service';
 
 // Import the legacy data JSON
 import legacyData from '../../strength-card-data.json';

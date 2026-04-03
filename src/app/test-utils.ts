@@ -383,19 +383,19 @@ export async function test_createSessionExercise(input: {
     coach_notes?: string | null;
 }) {
     const db = getDb();
-    const { createSessionExercise } = await import('../services/trainingPlan.service');
+    const { createSessionExercise } = await import('../services/sessionExercise.service');
     return await createSessionExercise(db, input);
 }
 
 export async function test_getSessionExercisesBySession(input: { session_id: string }) {
     const db = getDb();
-    const { getSessionExercisesBySession } = await import('../services/trainingPlan.service');
+    const { getSessionExercisesBySession } = await import('../services/sessionExercise.service');
     return await getSessionExercisesBySession(db, input);
 }
 
 export async function test_getSessionExerciseById(input: { id: string; tenant_id?: string | null }) {
     const db = getDb();
-    const { getSessionExerciseById } = await import('../services/trainingPlan.service');
+    const { getSessionExerciseById } = await import('../services/sessionExercise.service');
     return await getSessionExerciseById(db, input);
 }
 

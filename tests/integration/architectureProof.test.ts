@@ -5,12 +5,14 @@ import { D1Dialect } from 'kysely-d1';
 import type { Database } from '../../src/db/schema';
 import { 
   createTrainingPlan, 
-  createTrainingSession, 
-  createSessionExercise, 
+  createTrainingSession,
   cloneTrainingPlanToTenant,
-  updateSessionExercise,
   getFullTrainingPlan
 } from '../../src/services/trainingPlan.service';
+import { 
+  createSessionExercise, 
+  updateSessionExercise
+} from '../../src/services/sessionExercise.service';
 
 describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates', () => {
   let db: Kysely<Database>;

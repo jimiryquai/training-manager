@@ -15,15 +15,17 @@ import {
   getTrainingSessionsByWeek,
   updateTrainingSession,
   deleteTrainingSession,
+  getFullTrainingSession,
+  getFullTrainingPlan,
+} from '../../services/trainingPlan.service';
+import {
   createSessionExercise,
   getSessionExerciseById,
   getSessionExercisesBySession,
   getSessionExercisesGrouped,
   updateSessionExercise,
   deleteSessionExercise,
-  getFullTrainingSession,
-  getFullTrainingPlan,
-} from '../../services/trainingPlan.service';
+} from '../../services/sessionExercise.service';
 
 // ============================================================================
 // Training Plan Schemas
