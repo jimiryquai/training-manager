@@ -1,7 +1,7 @@
 ---
 title: Split God Object - trainingPlan.service.ts (Phase 2 Refactor)
 type: refactor
-status: pending
+status: complete
 date: 2026-04-03
 origin: docs/ideation/2026-04-03-cleanup-sweep-ideation.md
 depends_on: docs/plans/2026-04-03-001-fix-multi-tenancy-error-handling-plan.md
