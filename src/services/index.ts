@@ -8,5 +8,4 @@ export * from './exerciseDictionary.service';
 export * from './trainingPlan.service';
 export * from './trainingSession.service';
 export * from './sessionExercise.service';
-export * from './tenantSettings.service';
 export * from './user.service';

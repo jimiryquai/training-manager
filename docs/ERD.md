@@ -95,7 +95,8 @@ erDiagram
         string session_id FK
         string exercise_id FK
         string scheme_name
-        integer rest_seconds "Auto-regulated by Bioenergetic Limiter"
+        integer prescribed_rest_min "Compliance Boundary Min"
+        integer prescribed_rest_max "Compliance Boundary Max"
         string coach_notes "For interval pacing or prescriptions"
     }
 
@@ -109,12 +110,14 @@ erDiagram
         real conversion_factor "Template Set %"
         
         %% The Prescription (Calculated by AI using 1RM)
-        integer prescribed_reps
+        integer prescribed_reps_min "Compliance Boundary Min"
+        integer prescribed_reps_max "Compliance Boundary Max"
         real prescribed_weight
         
         %% The Execution (Logged by Athlete/Voice AI)
         integer actual_reps
         real actual_weight
+        integer actual_rest_seconds "Auto-regulated Reality"
         real rpe "Set execution RPE"
         boolean is_voice_entry
         boolean is_completed
