@@ -273,15 +273,22 @@ export async function getTrainingSessionById(
 
 export interface GetTrainingSessionsByPlanInput {
   plan_id: string;
+  tenant_id?: string | null;
 }
 
 export async function getTrainingSessionsByPlan(
   db: Kysely<Database>,
   input: GetTrainingSessionsByPlanInput
 ): Promise<TrainingSessionRecord[]> {
-  return db
+  let query = db
     .selectFrom('training_session')
-    .where('plan_id', '=', input.plan_id)
+    .where('plan_id', '=', input.plan_id);
+
+  if (input.tenant_id !== undefined) {
+    query = query.where('tenant_id', 'is', input.tenant_id);
+  }
+
+  return query
     .orderBy('week_number', 'asc')
     .orderBy('day_of_week', 'asc')
     .selectAll()
@@ -291,16 +298,23 @@ export async function getTrainingSessionsByPlan(
 export interface GetTrainingSessionsByWeekInput {
   plan_id: string;
   week_number: number;
+  tenant_id?: string | null;
 }
 
 export async function getTrainingSessionsByWeek(
   db: Kysely<Database>,
   input: GetTrainingSessionsByWeekInput
 ): Promise<TrainingSessionRecord[]> {
-  return db
+  let query = db
     .selectFrom('training_session')
     .where('plan_id', '=', input.plan_id)
-    .where('week_number', '=', input.week_number)
+    .where('week_number', '=', input.week_number);
+
+  if (input.tenant_id !== undefined) {
+    query = query.where('tenant_id', 'is', input.tenant_id);
+  }
+
+  return query
     .orderBy('day_of_week', 'asc')
     .selectAll()
     .execute();
@@ -448,15 +462,22 @@ export async function getSessionExerciseById(
 
 export interface GetSessionExercisesBySessionInput {
   session_id: string;
+  tenant_id?: string | null;
 }
 
 export async function getSessionExercisesBySession(
   db: Kysely<Database>,
   input: GetSessionExercisesBySessionInput
 ): Promise<SessionExerciseRecord[]> {
-  return db
+  let query = db
     .selectFrom('session_exercise')
-    .where('session_id', '=', input.session_id)
+    .where('session_id', '=', input.session_id);
+
+  if (input.tenant_id !== undefined) {
+    query = query.where('tenant_id', 'is', input.tenant_id);
+  }
+
+  return query
     .orderBy('order_in_session', 'asc')
     .selectAll()
     .execute();
@@ -468,9 +489,9 @@ export async function getSessionExercisesBySession(
  */
 export async function getSessionExercisesGrouped(
   db: Kysely<Database>,
-  session_id: string
+  input: { session_id: string; tenant_id?: string | null }
 ): Promise<Map<string | null, SessionExerciseRecord[]>> {
-  const exercises = await getSessionExercisesBySession(db, { session_id });
+  const exercises = await getSessionExercisesBySession(db, { session_id: input.session_id, tenant_id: input.tenant_id });
   const grouped = new Map<string | null, SessionExerciseRecord[]>();
 
   for (const exercise of exercises) {

@@ -332,6 +332,7 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
           if (this.state.sessionContext.currentPlanId) {
             const sessions = await services.getTrainingSessionsByPlan(db, {
               plan_id: this.state.sessionContext.currentPlanId,
+              tenant_id: tenantId,
             });
             result = sessions.find(s => s.day_of_week === dayOfWeek) || null;
           } else {

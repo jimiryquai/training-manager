@@ -235,6 +235,7 @@ export const trainingPlanRouter = router({
     .query(async ({ ctx, input }) => {
       return getTrainingSessionsByPlan(ctx.db, {
         plan_id: input.plan_id,
+        tenant_id: ctx.tenantId,
       });
     }),
 
@@ -244,6 +245,7 @@ export const trainingPlanRouter = router({
       return getTrainingSessionsByWeek(ctx.db, {
         plan_id: input.plan_id,
         week_number: input.week_number,
+        tenant_id: ctx.tenantId,
       });
     }),
 
@@ -310,13 +312,14 @@ export const trainingPlanRouter = router({
     .query(async ({ ctx, input }) => {
       return getSessionExercisesBySession(ctx.db, {
         session_id: input.session_id,
+        tenant_id: ctx.tenantId,
       });
     }),
 
   getExercisesGrouped: protectedProcedure
     .input(getSessionExercisesBySessionSchema)
     .query(async ({ ctx, input }) => {
-      const grouped = await getSessionExercisesGrouped(ctx.db, input.session_id);
+      const grouped = await getSessionExercisesGrouped(ctx.db, { session_id: input.session_id, tenant_id: ctx.tenantId });
       // Convert Map to object for serialization
       const result: Record<string, typeof grouped extends Map<infer K, infer V> ? V : never> = {};
       for (const [key, value] of grouped) {
