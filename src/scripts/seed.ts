@@ -13,7 +13,7 @@ import {
 } from '../services';
 import {
   createTrainingSession,
-} from '../services/trainingPlan.service';
+} from '../services/trainingSession.service';
 import {
   createSessionExercise,
 } from '../services/sessionExercise.service';

@@ -339,13 +339,13 @@ export async function test_createTrainingSession(input: {
     session_name?: string | null;
 }) {
     const db = getDb();
-    const { createTrainingSession } = await import('../services/trainingPlan.service');
+    const { createTrainingSession } = await import('../services/trainingSession.service');
     return await createTrainingSession(db, input);
 }
 
 export async function test_getTrainingSessionsByPlan(plan_id: string) {
     const db = getDb();
-    const { getTrainingSessionsByPlan } = await import('../services/trainingPlan.service');
+    const { getTrainingSessionsByPlan } = await import('../services/trainingSession.service');
     return await getTrainingSessionsByPlan(db, { plan_id });
 }
 
@@ -357,13 +357,13 @@ export async function test_getTrainingPlanById(input: { id: string; tenant_id?: 
 
 export async function test_getTrainingSessionById(input: { id: string; tenant_id?: string | null }) {
     const db = getDb();
-    const { getTrainingSessionById } = await import('../services/trainingPlan.service');
+    const { getTrainingSessionById } = await import('../services/trainingSession.service');
     return await getTrainingSessionById(db, input);
 }
 
 export async function test_getTrainingSessionsByWeek(input: { plan_id: string; week_number: number }) {
     const db = getDb();
-    const { getTrainingSessionsByWeek } = await import('../services/trainingPlan.service');
+    const { getTrainingSessionsByWeek } = await import('../services/trainingSession.service');
     return await getTrainingSessionsByWeek(db, input);
 }
 

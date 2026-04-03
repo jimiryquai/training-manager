@@ -6,6 +6,7 @@ export * from './exerciseDictionary.service';
 
 // New Agent-Native architecture services
 export * from './trainingPlan.service';
+export * from './trainingSession.service';
 export * from './sessionExercise.service';
 export * from './tenantSettings.service';
 export * from './user.service';

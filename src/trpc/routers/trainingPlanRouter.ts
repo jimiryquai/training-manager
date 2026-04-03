@@ -9,6 +9,9 @@ import {
   updateTrainingPlan,
   deleteTrainingPlan,
   cloneTrainingPlanToTenant,
+  getFullTrainingPlan,
+} from '../../services/trainingPlan.service';
+import {
   createTrainingSession,
   getTrainingSessionById,
   getTrainingSessionsByPlan,
@@ -16,8 +19,7 @@ import {
   updateTrainingSession,
   deleteTrainingSession,
   getFullTrainingSession,
-  getFullTrainingPlan,
-} from '../../services/trainingPlan.service';
+} from '../../services/trainingSession.service';
 import {
   createSessionExercise,
   getSessionExerciseById,

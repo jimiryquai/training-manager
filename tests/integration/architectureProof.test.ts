@@ -5,10 +5,12 @@ import { D1Dialect } from 'kysely-d1';
 import type { Database } from '../../src/db/schema';
 import { 
   createTrainingPlan, 
-  createTrainingSession,
   cloneTrainingPlanToTenant,
   getFullTrainingPlan
 } from '../../src/services/trainingPlan.service';
+import {
+  createTrainingSession,
+} from '../../src/services/trainingSession.service';
 import { 
   createSessionExercise, 
   updateSessionExercise
