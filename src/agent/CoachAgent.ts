@@ -13,15 +13,15 @@ import { generateText } from 'ai';
 import { openai } from '@ai-sdk/openai';
 import { createWorkersAI } from 'workers-ai-provider';
 import type { Database, BenchmarkUnit } from '../db/schema';
+import type { SessionData } from '../session/UserSession';
 
 // ============================================================================
 // Types
 // ============================================================================
 
 interface CoachAgentEnv extends Cloudflare.Env {
-  DB: D1Database;
-  AI: Ai;
-  OPENAI_API_KEY?: string;
+  // All fields inherited from Cloudflare.Env are required
+  // At runtime, some may be undefined but TypeScript requires the types to match
 }
 
 export interface CoachAgentState {
@@ -87,6 +87,133 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
   }
 
   // ===========================================================================
+  // Session Validation
+  // ===========================================================================
+
+  /**
+   * Validate session cookie against UserSession DO
+   * Returns session data if valid, null otherwise
+   */
+  private async validateSession(request: Request): Promise<{ userId: string; tenantId: string } | null> {
+    try {
+      // Extract session ID from cookie
+      const cookieHeader = request.headers.get('Cookie');
+      if (!cookieHeader) {
+        console.log('[CoachAgent] No cookie header found');
+        return null;
+      }
+
+      const sessionId = this.extractSessionId(cookieHeader);
+      if (!sessionId) {
+        console.log('[CoachAgent] No session_id cookie found');
+        return null;
+      }
+
+      // Validate session ID signature
+      const secretKey = this.env.SESSION_SECRET || this.env.AUTH_SECRET_KEY;
+      if (!secretKey) {
+        console.error('[CoachAgent] No session secret configured');
+        return null;
+      }
+
+      const isValid = await this.isValidSessionId(sessionId, secretKey);
+      if (!isValid) {
+        console.log('[CoachAgent] Invalid session ID signature');
+        return null;
+      }
+
+      // Get session from UserSession DO
+      const { unsignedSessionId } = this.unpackSessionId(sessionId);
+      const doId = this.env.USER_SESSION_DO.idFromName(unsignedSessionId);
+      const sessionStub = this.env.USER_SESSION_DO.get(doId) as unknown as {
+        getSession(): Promise<{ value: SessionData | null } | { error: string }>;
+      };
+
+      // Call getSession RPC method
+      const result = await sessionStub.getSession();
+
+      if ('error' in result) {
+        console.log('[CoachAgent] Session error:', result.error);
+        return null;
+      }
+
+      if (!result.value) {
+        console.log('[CoachAgent] No session value found');
+        return null;
+      }
+
+      return result.value;
+    } catch (error) {
+      console.error('[CoachAgent] Session validation error:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Extract session_id from cookie header
+   */
+  private extractSessionId(cookieHeader: string): string | null {
+    for (const cookie of cookieHeader.split(';')) {
+      const trimmedCookie = cookie.trim();
+      const separatorIndex = trimmedCookie.indexOf('=');
+      if (separatorIndex === -1) continue;
+      const key = trimmedCookie.slice(0, separatorIndex);
+      const value = trimmedCookie.slice(separatorIndex + 1);
+      if (key === 'session_id') {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Unpack signed session ID into unsigned ID and signature
+   */
+  private unpackSessionId(packed: string): { unsignedSessionId: string; signature: string } {
+    const [unsignedSessionId, signature] = atob(packed).split(':');
+    return { unsignedSessionId, signature };
+  }
+
+  /**
+   * Validate session ID signature using HMAC-SHA256
+   */
+  private async isValidSessionId(sessionId: string, secretKey: string): Promise<boolean> {
+    try {
+      const { unsignedSessionId, signature } = this.unpackSessionId(sessionId);
+      const computedSignature = await this.signSessionId(unsignedSessionId, secretKey);
+      return computedSignature === signature;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Sign a session ID using HMAC-SHA256
+   */
+  private async signSessionId(unsignedSessionId: string, secretKey: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const key = await crypto.subtle.importKey(
+      'raw',
+      encoder.encode(secretKey),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    );
+    const signatureArrayBuffer = await crypto.subtle.sign('HMAC', key, encoder.encode(unsignedSessionId));
+    return this.arrayBufferToHex(signatureArrayBuffer);
+  }
+
+  /**
+   * Convert ArrayBuffer to hex string
+   */
+  private arrayBufferToHex(buffer: ArrayBuffer): string {
+    const array = new Uint8Array(buffer);
+    return Array.from(array)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  // ===========================================================================
   // Lifecycle Hooks
   // ===========================================================================
 
@@ -107,36 +234,21 @@ export class CoachAgent extends Agent<CoachAgentEnv, CoachAgentState> {
   }
 
   async onConnect(connection: Connection, ctx: ConnectionContext): Promise<void> {
-    const url = new URL(ctx.request.url);
-    const userId = url.searchParams.get('userId') || ctx.request.headers.get('X-User-ID');
-    const tenantId = url.searchParams.get('tenantId') || ctx.request.headers.get('X-Tenant-ID');
+    // Validate session cookie against UserSession DO
+    // Do NOT trust userId/tenantId from query params - extract from validated session
+    const session = await this.validateSession(ctx.request);
 
-    if (!userId || !tenantId) {
+    if (!session) {
       connection.send(JSON.stringify({
         type: 'error',
         code: 'UNAUTHORIZED',
-        message: 'Missing userId or tenantId in query params or headers',
+        message: 'Invalid or missing session',
       }));
       connection.close(1008, 'Unauthorized');
       return;
     }
 
-    // Reject obviously fake values (empty strings, 'null', 'undefined', 'test', etc.)
-    const fakePatterns = /^(null|undefined|test|admin|root|\s*)$/i;
-    if (fakePatterns.test(userId) || fakePatterns.test(tenantId)) {
-      connection.send(JSON.stringify({
-        type: 'error',
-        code: 'UNAUTHORIZED',
-        message: 'Invalid userId or tenantId',
-      }));
-      connection.close(1008, 'Unauthorized');
-      return;
-    }
-
-    // TODO: When auth system is productionized, validate the session cookie from
-    // ctx.request.headers against UserSession DO instead of trusting query params.
-    // This prevents impersonation by crafting arbitrary userId/tenantId values.
-
+    const { userId, tenantId } = session;
     console.log(`[CoachAgent] Connection accepted for userId=${userId}, tenantId=${tenantId}`);
 
     this.setState({
