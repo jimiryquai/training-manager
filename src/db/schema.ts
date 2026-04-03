@@ -17,16 +17,8 @@ export type UserRole = 'athlete' | 'admin';
 export type DataSource = 'apple_health' | 'manual_slider' | 'agent_voice';
 
 /**
- * Movement categories for exercise classification
- * NOTE: Changed from strict enum to flexible string to support hybrid training modalities
- * Previous enum values are still supported as standard conventions
+ * Movement categories for exercise classification (flexible string, not enforced at DB level)
  */
-// Legacy enum values for reference (no longer enforced at database level):
-// 'squat', 'hinge', 'push', 'pull', 'carry', 'core', 'cardio',
-// 'horizontal_push', 'horizontal_pull', 'vertical_push', 'vertical_pull',
-// 'unilateral_leg', 'bilateral_leg', 'core_flexion', 'core_rotation',
-// 'core_antiextension', 'core_antilateral', 'conditioning',
-// 'mobility', 'warmup', 'cooldown'
 
 /**
  * Exercise type for determining how the exercise is performed
