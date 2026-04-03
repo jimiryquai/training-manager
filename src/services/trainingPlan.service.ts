@@ -313,12 +313,25 @@ export async function getFullTrainingPlan(
     if (!plan) return undefined;
 
     const sessions = await getTrainingSessionsByPlan(db, { plan_id: plan.id, tenant_id: input.tenant_id });
-    const sessionsWithExercises: TrainingSessionWithExercises[] = [];
 
-    for (const session of sessions) {
-      const exercises = await getSessionExercisesBySession(db, { session_id: session.id, tenant_id: input.tenant_id });
-      sessionsWithExercises.push({ ...session, exercises });
+    // Batch query all exercises for all sessions (eliminates N+1)
+    const sessionIds = sessions.map(s => s.id);
+    let allExercises: SessionExerciseRecord[] = [];
+    if (sessionIds.length > 0) {
+      let query = db
+        .selectFrom('session_exercise')
+        .where('session_id', 'in', sessionIds);
+      if (input.tenant_id !== undefined) {
+        query = query.where('tenant_id', input.tenant_id === null ? 'is' : '=', input.tenant_id);
+      }
+      allExercises = await query.orderBy('order_in_session').selectAll().execute();
     }
+    const exercisesBySession = Map.groupBy(allExercises, e => e.session_id);
+
+    const sessionsWithExercises = sessions.map(session => ({
+      ...session,
+      exercises: exercisesBySession.get(session.id) ?? [],
+    }));
 
     return { ...plan, sessions: sessionsWithExercises };
   });
