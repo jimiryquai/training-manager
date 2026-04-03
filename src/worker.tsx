@@ -71,6 +71,7 @@ export default defineApp([
       const cookies = request.headers.get("cookie") || "";
       const devSession = cookies.match(/dev_session=([^;]+)/)?.[1];
       if (devSession === "seed-user-001:seed-tenant-001") {
+        console.warn('[AUTH] Dev session bypass activated - DO NOT use in production');
         ctx.session = {
           userId: "seed-user-001",
           tenantId: "seed-tenant-001",
