@@ -55,9 +55,11 @@ export interface UserTable {
   external_auth_id: string | null; // For RedwoodSDK Passkeys
   email: string;
   role: UserRole;
-  bioenergetic_limiter: string | null; // 'Delivery' | 'Respiratory' | 'Utilization'
   is_active: Generated<number>; // SQLite boolean: 0 or 1
   display_name: string | null;
+  date_of_birth: string | null;
+  gender: 'male' | 'female' | 'prefer_not_to_say' | null;
+  height_cm: number | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -222,6 +224,76 @@ export interface WorkoutSessionTable {
   updated_at: Generated<string>;
 }
 
+/**
+ * Onboarding and Training Types
+ */
+export type TrainingStatus = 'untrained' | 'detrained' | 'trained';
+export type PrimaryGoal = 'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness' | 'sport_performance' | 'rehabilitation';
+export type BioenergeticLimiter = 'Delivery' | 'Respiratory' | 'Utilization';
+
+export interface AthleteProfileTable {
+  id: string; // PK (corresponds to user_id, but explicitly defined)
+  tenant_id: string;
+  user_id: string; // UNIQUE FK to user
+  training_status: TrainingStatus;
+  training_age_years: Generated<number>;
+  last_consistent_training_date: string | null;
+  primary_goal: PrimaryGoal | null;
+  training_days_per_week: Generated<number>;
+  max_session_duration_minutes: Generated<number>;
+  weekend_session_duration_minutes: number | null;
+  bioenergetic_limiter: BioenergeticLimiter | null;
+  sport_context: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export type InjurySeverity = 'mild' | 'moderate' | 'severe';
+export type InjuryStatus = 'active' | 'recovered' | 'chronic';
+export type BodyRegion = 'neck' | 'shoulder' | 'upper_back' | 'lower_back' | 'chest' | 'abdomen' | 'elbow' | 'wrist' | 'hand' | 'hip' | 'groin' | 'quadriceps' | 'hamstrings' | 'knee' | 'calf' | 'ankle' | 'foot' | 'other';
+
+export interface InjuryHistoryTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string; // FK to user
+  body_region: BodyRegion;
+  injury_type: string;
+  severity: InjurySeverity;
+  status: InjuryStatus;
+  date_occurred: string | null;
+  contraindicated_movements: string | null;
+  notes: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface EquipmentTable {
+  id: Generated<string>;
+  tenant_id: string | null; // NULL for global system templates
+  name: string; // UNIQUE
+  notes: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface AthleteEquipmentTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string; // FK to user
+  equipment_id: string; // FK to equipment
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+export interface ExerciseEquipmentTable {
+  id: Generated<string>;
+  tenant_id: string | null; // NULL for system templates
+  exercise_dictionary_id: string; // FK to exercise_dictionary
+  equipment_id: string; // FK to equipment
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
 // ============================================================================
 // Database Type
 // ============================================================================
@@ -241,6 +313,11 @@ export interface Database {
   session_exercise: SessionExerciseTable;
   exercise_set: ExerciseSetTable;
   workout_session: WorkoutSessionTable;
+  athlete_profile: AthleteProfileTable;
+  injury_history: InjuryHistoryTable;
+  equipment: EquipmentTable;
+  athlete_equipment: AthleteEquipmentTable;
+  exercise_equipment: ExerciseEquipmentTable;
 }
 
 // ============================================================================
@@ -256,6 +333,9 @@ export type InsertableUser = Omit<
   'id' | 'created_at' | 'updated_at' | 'is_active'
 > & {
   is_active?: number;
+  date_of_birth?: string | null;
+  gender?: 'male' | 'female' | 'prefer_not_to_say' | null;
+  height_cm?: number | null;
 };
 
 export type InsertableDailyWellness = Omit<
@@ -310,6 +390,35 @@ export type InsertableWorkoutSession = Omit<
   is_voice_entry?: number;
 };
 
+export type InsertableAthleteProfile = Omit<
+  AthleteProfileTable,
+  'created_at' | 'updated_at' | 'training_age_years' | 'training_days_per_week' | 'max_session_duration_minutes'
+> & {
+  training_age_years?: number;
+  training_days_per_week?: number;
+  max_session_duration_minutes?: number;
+};
+
+export type InsertableInjuryHistory = Omit<
+  InjuryHistoryTable,
+  'id' | 'created_at' | 'updated_at'
+>;
+
+export type InsertableEquipment = Omit<
+  EquipmentTable,
+  'id' | 'created_at' | 'updated_at'
+>;
+
+export type InsertableAthleteEquipment = Omit<
+  AthleteEquipmentTable,
+  'id' | 'created_at' | 'updated_at'
+>;
+
+export type InsertableExerciseEquipment = Omit<
+  ExerciseEquipmentTable,
+  'id' | 'created_at' | 'updated_at'
+>;
+
 export type InsertableTenantSettings = TenantSettingsTable;
 
 /**
@@ -318,7 +427,9 @@ export type InsertableTenantSettings = TenantSettingsTable;
  */
 export type SystemTemplateTables =
   | ExerciseDictionaryTable
-  | TrainingPlanTable;
+  | TrainingPlanTable
+  | EquipmentTable
+  | ExerciseEquipmentTable;
 
 /**
  * Helper type for user-scoped tables (always have tenant_id and user_id)
@@ -326,4 +437,8 @@ export type SystemTemplateTables =
 export type UserScopedTables =
   | DailyWellnessTable
   | UserBenchmarkTable
-  | WorkoutSessionTable;
+  | WorkoutSessionTable
+  | AthleteProfileTable
+  | InjuryHistoryTable
+  | AthleteEquipmentTable;
+

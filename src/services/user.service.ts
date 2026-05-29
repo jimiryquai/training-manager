@@ -11,6 +11,9 @@ export interface CreateUserInput {
   role?: UserRole;
   is_active?: number;
   display_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: 'male' | 'female' | 'prefer_not_to_say' | null;
+  height_cm?: number | null;
 }
 
 export type UserRecord = {
@@ -21,6 +24,9 @@ export type UserRecord = {
   role: UserRole;
   is_active: number;
   display_name: string | null;
+  date_of_birth: string | null;
+  gender: 'male' | 'female' | 'prefer_not_to_say' | null;
+  height_cm: number | null;
 };
 
 export async function createUser(
@@ -41,6 +47,9 @@ export async function createUser(
         role: input.role ?? 'athlete',
         is_active: input.is_active ?? 1,
         display_name: input.display_name ?? null,
+        date_of_birth: input.date_of_birth ?? null,
+        gender: input.gender ?? null,
+        height_cm: input.height_cm ?? null,
         created_at: now,
         updated_at: now,
       })
@@ -142,6 +151,9 @@ export interface UpdateUserInput {
   role?: UserRole;
   is_active?: number;
   display_name?: string | null;
+  date_of_birth?: string | null;
+  gender?: 'male' | 'female' | 'prefer_not_to_say' | null;
+  height_cm?: number | null;
 }
 
 export async function updateUser(
@@ -157,6 +169,9 @@ export async function updateUser(
     if (input.role !== undefined) updates.role = input.role;
     if (input.is_active !== undefined) updates.is_active = input.is_active;
     if (input.display_name !== undefined) updates.display_name = input.display_name;
+    if (input.date_of_birth !== undefined) updates.date_of_birth = input.date_of_birth;
+    if (input.gender !== undefined) updates.gender = input.gender;
+    if (input.height_cm !== undefined) updates.height_cm = input.height_cm;
 
     let query = db
       .updateTable('user')

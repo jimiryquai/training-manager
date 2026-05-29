@@ -328,8 +328,8 @@ describe('trainingPlanRouter - Integration Tests', () => {
         session_id: session.id,
         exercise_dictionary_id: exercise.id,
         order_in_session: 1,
-        target_sets: 3,
-        target_reps: '10',
+        prescribed_rest_min: 1,
+        prescribed_rest_max: 2,
       });
 
       // Clone to Tenant A
@@ -468,8 +468,8 @@ describe('trainingPlanRouter - Integration Tests', () => {
         session_id: session.id,
         exercise_dictionary_id: exercise.id,
         order_in_session: 1,
-        target_sets: 5,
-        target_reps: '5',
+        prescribed_rest_min: 5,
+        prescribed_rest_max: 6,
       });
 
       const result = await vitestInvoke<any>('test_tp_getFullPlan', {
@@ -484,7 +484,7 @@ describe('trainingPlanRouter - Integration Tests', () => {
       expect(result.sessions[0].session_name).toBe('Push Day');
       expect(result.sessions[0].exercises).toBeDefined();
       expect(result.sessions[0].exercises.length).toBe(1);
-      expect(result.sessions[0].exercises[0].target_sets).toBe(5);
+      expect(result.sessions[0].exercises[0].prescribed_rest_min).toBe(5);
     });
 
     it('should return undefined for plan from another tenant', async () => {

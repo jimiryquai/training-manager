@@ -9,3 +9,7 @@ export * from './trainingPlan.service';
 export * from './trainingSession.service';
 export * from './sessionExercise.service';
 export * from './user.service';
+export * from './exerciseSet.service';
+export * from './athleteProfile.service';
+export * from './injuryHistory.service';
+export * from './equipment.service';

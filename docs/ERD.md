@@ -3,6 +3,12 @@ erDiagram
     User ||--o{ DailyWellness : "logs"
     User ||--o{ WorkoutSession : "completes"
     User ||--o{ UserBenchmark : "tracks"
+    User ||--|| AthleteProfile : "has profile"
+    User ||--o{ InjuryHistory : "has injury history"
+    User ||--o{ AthleteEquipment : "has equipment access"
+    Equipment ||--o{ AthleteEquipment : "assigned to"
+    ExerciseDictionary ||--o{ ExerciseEquipment : "requires equipment"
+    Equipment ||--o{ ExerciseEquipment : "assigned to"
     TrainingPlan ||--o{ TrainingSession : "breaks down into"
     TrainingSession ||--o{ SessionExercise : "prescribes"
     ExerciseDictionary ||--o{ SessionExercise : "referenced in"
@@ -12,7 +18,69 @@ erDiagram
         string id PK
         string email
         string tenant_id
-        string bioenergetic_limiter "From Paradigm Shift RAG"
+        string display_name
+        string date_of_birth
+        string gender
+        real height_cm
+        string created_at
+        string updated_at
+    }
+
+    AthleteProfile {
+        string id PK
+        string tenant_id
+        string user_id FK "UNIQUE"
+        string training_status "'untrained' | 'detrained' | 'trained'"
+        integer training_age_years
+        string last_consistent_training_date
+        string primary_goal "'fat_loss' | 'muscle_gain' | 'strength' | 'general_fitness' | 'sport_performance' | 'rehabilitation'"
+        integer training_days_per_week
+        integer max_session_duration_minutes
+        integer weekend_session_duration_minutes
+        string bioenergetic_limiter "'Delivery' | 'Respiratory' | 'Utilization'"
+        string sport_context
+        string created_at
+        string updated_at
+    }
+
+    InjuryHistory {
+        string id PK
+        string tenant_id
+        string user_id FK
+        string body_region "'neck' | 'shoulder' | 'upper_back' | 'lower_back' | 'chest' | 'abdomen' | 'elbow' | 'wrist' | 'hand' | 'hip' | 'groin' | 'quadriceps' | 'hamstrings' | 'knee' | 'calf' | 'ankle' | 'foot' | 'other'"
+        string injury_type
+        string severity "'mild' | 'moderate' | 'severe'"
+        string status "'active' | 'recovered' | 'chronic'"
+        string date_occurred
+        string contraindicated_movements
+        string notes
+        string created_at
+        string updated_at
+    }
+
+    Equipment {
+        string id PK
+        string tenant_id "NULL for Global Reference"
+        string name "UNIQUE"
+        string notes
+        string created_at
+        string updated_at
+    }
+
+    AthleteEquipment {
+        string id PK
+        string tenant_id
+        string user_id FK
+        string equipment_id FK
+        string created_at
+        string updated_at
+    }
+
+    ExerciseEquipment {
+        string id PK
+        string tenant_id "NULL for system templates"
+        string exercise_dictionary_id FK
+        string equipment_id FK
         string created_at
         string updated_at
     }
@@ -122,5 +190,4 @@ erDiagram
         boolean is_voice_entry
         boolean is_completed
     }
-
 ```

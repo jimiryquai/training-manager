@@ -223,8 +223,8 @@ describe('TrainingPlan Service - Multi-Tenancy Isolation Tests', () => {
         session_id: sessionX.id,
         exercise_dictionary_id: exercise.id,
         order_in_session: 1,
-        target_sets: 3,
-        target_reps: '5',
+        prescribed_rest_min: 1,
+        prescribed_rest_max: 2,
       });
 
       expect(exerciseX).toBeDefined();
@@ -329,8 +329,8 @@ describe('TrainingPlan Service - Multi-Tenancy Isolation Tests', () => {
         session_id: sessionX.id,
         exercise_dictionary_id: exercise.id,
         order_in_session: 1,
-        target_sets: 5,
-        target_reps: '3',
+        prescribed_rest_min: 2,
+        prescribed_rest_max: 3,
       });
 
       // Retrieve full plan with correct tenant

@@ -23,6 +23,12 @@
       "migrations_dir": "./src/db/migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "MEMORIES",
+      "bucket_name": "training-manager-memories"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       { "name": "USER_SESSION_DO", "class_name": "UserSession" },

@@ -255,14 +255,20 @@ export async function test_getAverageWellnessScores(input: {
 export async function test_cleanDatabase(tenantId: string) {
     const db = getDb();
     // Delete in dependency order to respect FK constraints
+    await db.deleteFrom('exercise_set').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('session_exercise').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('training_session').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('training_plan').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('workout_session').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('daily_wellness').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('user_benchmarks').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('athlete_equipment').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('exercise_equipment').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('exercise_dictionary').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('injury_history').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('athlete_profile').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('user').where('tenant_id', '=', tenantId).execute();
+    await db.deleteFrom('equipment').where('tenant_id', '=', tenantId).execute();
 }
 
 // ============================================================================
@@ -297,6 +303,9 @@ export async function test_updateUser(input: {
     role?: 'athlete' | 'admin';
     is_active?: number;
     display_name?: string | null;
+    date_of_birth?: string | null;
+    gender?: 'male' | 'female' | 'prefer_not_to_say' | null;
+    height_cm?: number | null;
 }) {
     const db = getDb();
     return await updateUser(db, input);
@@ -586,7 +595,8 @@ export async function test_getSessionExerciseById(input: { id: string; tenant_id
 
 export async function test_cleanTrainingPlanData(tenantId: string) {
     const db = getDb();
-    // Delete in dependency order: exercises -> sessions -> plans
+    // Delete in dependency order: sets -> exercises -> sessions -> plans
+    await db.deleteFrom('exercise_set').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('session_exercise').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('training_session').where('tenant_id', '=', tenantId).execute();
     await db.deleteFrom('training_plan').where('tenant_id', '=', tenantId).execute();
@@ -1951,4 +1961,170 @@ export async function test_dash_getReadinessView(input: {
         date: input.date,
         history_days: input.history_days ?? 28,
     });
+}
+
+// ============================================================================
+// ExerciseSet Service Test Utilities
+// ============================================================================
+
+export async function test_createExerciseSet(input: any) {
+    const db = getDb();
+    const { createExerciseSet } = await import('../services/exerciseSet.service');
+    return await createExerciseSet(db, input);
+}
+
+export async function test_getExerciseSetById(input: any) {
+    const db = getDb();
+    const { getExerciseSetById } = await import('../services/exerciseSet.service');
+    return await getExerciseSetById(db, input);
+}
+
+export async function test_getExerciseSetsBySessionExercise(input: any) {
+    const db = getDb();
+    const { getExerciseSetsBySessionExercise } = await import('../services/exerciseSet.service');
+    return await getExerciseSetsBySessionExercise(db, input);
+}
+
+export async function test_updateExerciseSet(input: any) {
+    const db = getDb();
+    const { updateExerciseSet } = await import('../services/exerciseSet.service');
+    return await updateExerciseSet(db, input);
+}
+
+export async function test_deleteExerciseSet(input: any) {
+    const db = getDb();
+    const { deleteExerciseSet } = await import('../services/exerciseSet.service');
+    return await deleteExerciseSet(db, input);
+}
+
+// ============================================================================
+// AthleteProfile Service Test Utilities
+// ============================================================================
+
+export async function test_createAthleteProfile(input: any) {
+    const db = getDb();
+    const { createAthleteProfile } = await import('../services/athleteProfile.service');
+    return await createAthleteProfile(db, input);
+}
+
+export async function test_getAthleteProfileById(input: any) {
+    const db = getDb();
+    const { getAthleteProfileById } = await import('../services/athleteProfile.service');
+    return await getAthleteProfileById(db, input);
+}
+
+export async function test_getAthleteProfileByUserId(input: any) {
+    const db = getDb();
+    const { getAthleteProfileByUserId } = await import('../services/athleteProfile.service');
+    return await getAthleteProfileByUserId(db, input);
+}
+
+export async function test_updateAthleteProfile(input: any) {
+    const db = getDb();
+    const { updateAthleteProfile } = await import('../services/athleteProfile.service');
+    return await updateAthleteProfile(db, input);
+}
+
+export async function test_deleteAthleteProfile(input: any) {
+    const db = getDb();
+    const { deleteAthleteProfile } = await import('../services/athleteProfile.service');
+    return await deleteAthleteProfile(db, input);
+}
+
+// ============================================================================
+// InjuryHistory Service Test Utilities
+// ============================================================================
+
+export async function test_createInjuryRecord(input: any) {
+    const db = getDb();
+    const { createInjuryRecord } = await import('../services/injuryHistory.service');
+    return await createInjuryRecord(db, input);
+}
+
+export async function test_getInjuryRecordById(input: any) {
+    const db = getDb();
+    const { getInjuryRecordById } = await import('../services/injuryHistory.service');
+    return await getInjuryRecordById(db, input);
+}
+
+export async function test_getInjuriesByUserId(input: any) {
+    const db = getDb();
+    const { getInjuriesByUserId } = await import('../services/injuryHistory.service');
+    return await getInjuriesByUserId(db, input);
+}
+
+export async function test_updateInjuryRecord(input: any) {
+    const db = getDb();
+    const { updateInjuryRecord } = await import('../services/injuryHistory.service');
+    return await updateInjuryRecord(db, input);
+}
+
+export async function test_deleteInjuryRecord(input: any) {
+    const db = getDb();
+    const { deleteInjuryRecord } = await import('../services/injuryHistory.service');
+    return await deleteInjuryRecord(db, input);
+}
+
+// ============================================================================
+// Equipment Service Test Utilities
+// ============================================================================
+
+export async function test_createEquipment(input: any) {
+    const db = getDb();
+    const { createEquipment } = await import('../services/equipment.service');
+    return await createEquipment(db, input);
+}
+
+export async function test_getEquipmentById(input: any) {
+    const db = getDb();
+    const { getEquipmentById } = await import('../services/equipment.service');
+    return await getEquipmentById(db, input);
+}
+
+export async function test_getAllReferenceEquipment(input: any) {
+    const db = getDb();
+    const { getAllReferenceEquipment } = await import('../services/equipment.service');
+    return await getAllReferenceEquipment(db, input);
+}
+
+export async function test_deleteEquipment(input: any) {
+    const db = getDb();
+    const { deleteEquipment } = await import('../services/equipment.service');
+    return await deleteEquipment(db, input);
+}
+
+export async function test_assignAthleteEquipment(input: any) {
+    const db = getDb();
+    const { assignAthleteEquipment } = await import('../services/equipment.service');
+    return await assignAthleteEquipment(db, input);
+}
+
+export async function test_removeAthleteEquipment(input: any) {
+    const db = getDb();
+    const { removeAthleteEquipment } = await import('../services/equipment.service');
+    return await removeAthleteEquipment(db, input);
+}
+
+export async function test_getAthleteEquipment(input: any) {
+    const db = getDb();
+    const { getAthleteEquipment } = await import('../services/equipment.service');
+    return await getAthleteEquipment(db, input);
+}
+
+export async function test_assignExerciseEquipment(input: any) {
+    const db = getDb();
+    const { assignExerciseEquipment } = await import('../services/equipment.service');
+    return await assignExerciseEquipment(db, input);
+}
+
+export async function test_removeExerciseEquipment(input: any) {
+    const db = getDb();
+    const { removeExerciseEquipment } = await import('../services/equipment.service');
+    return await removeExerciseEquipment(db, input);
+}
+
+export async function test_getExerciseEquipment(input: any) {
+    const db = getDb();
+    const { getExerciseEquipment } = await import('../services/equipment.service');
+    return await getExerciseEquipment(db, input);
 }

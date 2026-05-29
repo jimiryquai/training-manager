@@ -30,6 +30,7 @@ import * as testUtils from "./app/test-utils";
 export type Env = {
   DB: D1Database;
   AI: Ai;
+  MEMORIES: R2Bucket;
   USER_SESSION_DO: DurableObjectNamespace;
   CoachAgent: DurableObjectNamespace;
   OPENAI_API_KEY?: string;
