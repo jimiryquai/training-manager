@@ -563,12 +563,8 @@ export async function test_createSessionExercise(input: {
     circuit_group?: string | null;
     order_in_session: number;
     scheme_name?: string | null;
-    target_sets?: number | null;
-    target_reps?: string | null;
-    target_intensity?: number | null;
-    target_rpe?: number | null;
-    target_tempo?: string | null;
-    target_rest_seconds?: number | null;
+    prescribed_rest_min?: number | null;
+    prescribed_rest_max?: number | null;
     coach_notes?: string | null;
 }) {
     const db = getDb();

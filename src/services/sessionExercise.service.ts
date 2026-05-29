@@ -14,12 +14,8 @@ export interface CreateSessionExerciseInput {
   circuit_group?: string | null;
   order_in_session: number;
   scheme_name?: string | null;
-  target_sets?: number | null;
-  target_reps?: string | null;
-  target_intensity?: number | null;
-  target_rpe?: number | null;
-  target_tempo?: string | null;
-  target_rest_seconds?: number | null;
+  prescribed_rest_min?: number | null;
+  prescribed_rest_max?: number | null;
   coach_notes?: string | null;
 }
 
@@ -31,12 +27,8 @@ export type SessionExerciseRecord = {
   circuit_group: string | null;
   order_in_session: number;
   scheme_name: string | null;
-  target_sets: number | null;
-  target_reps: string | null;
-  target_intensity: number | null;
-  target_rpe: number | null;
-  target_tempo: string | null;
-  target_rest_seconds: number | null;
+  prescribed_rest_min: number | null;
+  prescribed_rest_max: number | null;
   coach_notes: string | null;
 };
 
@@ -58,12 +50,8 @@ export async function createSessionExercise(
         circuit_group: input.circuit_group ?? null,
         order_in_session: input.order_in_session,
         scheme_name: input.scheme_name ?? null,
-        target_sets: input.target_sets ?? null,
-        target_reps: input.target_reps ?? null,
-        target_intensity: input.target_intensity ?? null,
-        target_rpe: input.target_rpe ?? null,
-        target_tempo: input.target_tempo ?? null,
-        target_rest_seconds: input.target_rest_seconds ?? null,
+        prescribed_rest_min: input.prescribed_rest_min ?? null,
+        prescribed_rest_max: input.prescribed_rest_max ?? null,
         coach_notes: input.coach_notes ?? null,
         created_at: now,
         updated_at: now,
@@ -150,12 +138,8 @@ export interface UpdateSessionExerciseInput {
   circuit_group?: string | null;
   order_in_session?: number;
   scheme_name?: string | null;
-  target_sets?: number | null;
-  target_reps?: string | null;
-  target_intensity?: number | null;
-  target_rpe?: number | null;
-  target_tempo?: string | null;
-  target_rest_seconds?: number | null;
+  prescribed_rest_min?: number | null;
+  prescribed_rest_max?: number | null;
   coach_notes?: string | null;
 }
 
@@ -170,12 +154,8 @@ export async function updateSessionExercise(
     if (input.circuit_group !== undefined) updates.circuit_group = input.circuit_group;
     if (input.order_in_session !== undefined) updates.order_in_session = input.order_in_session;
     if (input.scheme_name !== undefined) updates.scheme_name = input.scheme_name;
-    if (input.target_sets !== undefined) updates.target_sets = input.target_sets;
-    if (input.target_reps !== undefined) updates.target_reps = input.target_reps;
-    if (input.target_intensity !== undefined) updates.target_intensity = input.target_intensity;
-    if (input.target_rpe !== undefined) updates.target_rpe = input.target_rpe;
-    if (input.target_tempo !== undefined) updates.target_tempo = input.target_tempo;
-    if (input.target_rest_seconds !== undefined) updates.target_rest_seconds = input.target_rest_seconds;
+    if (input.prescribed_rest_min !== undefined) updates.prescribed_rest_min = input.prescribed_rest_min;
+    if (input.prescribed_rest_max !== undefined) updates.prescribed_rest_max = input.prescribed_rest_max;
     if (input.coach_notes !== undefined) updates.coach_notes = input.coach_notes;
 
     const result = await db

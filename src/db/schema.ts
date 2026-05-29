@@ -55,6 +55,7 @@ export interface UserTable {
   external_auth_id: string | null; // For RedwoodSDK Passkeys
   email: string;
   role: UserRole;
+  bioenergetic_limiter: string | null; // 'Delivery' | 'Respiratory' | 'Utilization'
   is_active: Generated<number>; // SQLite boolean: 0 or 1
   display_name: string | null;
   created_at: Generated<string>;
@@ -164,13 +165,35 @@ export interface SessionExerciseTable {
   circuit_group: string | null; // Groups supersets: 'A', 'B', 'Warmup'
   order_in_session: number;
   scheme_name: string | null; // e.g., 'Constant Wave 2x8/6/4'
-  target_sets: number | null;
-  target_reps: string | null;
-  target_intensity: number | null;
-  target_rpe: number | null;
-  target_tempo: string | null;
-  target_rest_seconds: number | null;
+  prescribed_rest_min: number | null;
+  prescribed_rest_max: number | null;
   coach_notes: string | null; // AI or coach instructions
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+/**
+ * Exercise Set - Set-level prescription and execution tracking
+ * Child of SessionExercise for per-set precision
+ */
+export interface ExerciseSetTable {
+  id: Generated<string>;
+  tenant_id: string;
+  session_exercise_id: string; // FK to SessionExercise
+  set_number: number;
+  // Template Math
+  conversion_factor: number | null; // Intra-session step-up percentage
+  // The Prescription (AI Calculated)
+  prescribed_reps_min: number | null;
+  prescribed_reps_max: number | null;
+  prescribed_weight: number | null;
+  // The Execution (Athlete/Voice Logged)
+  actual_reps: number | null;
+  actual_weight: number | null;
+  actual_rest_seconds: number | null;
+  rpe: number | null;
+  is_voice_entry: Generated<number>; // SQLite boolean
+  is_completed: Generated<number>; // SQLite boolean
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -216,6 +239,7 @@ export interface Database {
   training_plan: TrainingPlanTable;
   training_session: TrainingSessionTable;
   session_exercise: SessionExerciseTable;
+  exercise_set: ExerciseSetTable;
   workout_session: WorkoutSessionTable;
 }
 
@@ -269,6 +293,14 @@ export type InsertableSessionExercise = Omit<
   SessionExerciseTable,
   'id' | 'created_at' | 'updated_at'
 >;
+
+export type InsertableExerciseSet = Omit<
+  ExerciseSetTable,
+  'id' | 'created_at' | 'updated_at' | 'is_voice_entry' | 'is_completed'
+> & {
+  is_voice_entry?: number;
+  is_completed?: number;
+};
 
 export type InsertableWorkoutSession = Omit<
   WorkoutSessionTable,

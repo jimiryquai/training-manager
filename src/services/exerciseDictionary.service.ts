@@ -14,6 +14,8 @@ export interface CreateExerciseInput {
   exercise_type: ExerciseType;
   benchmark_target?: string | null;
   conversion_factor?: number | null;
+  percent_bodyweight_used?: number;
+  rounding_increment?: number;
 }
 
 export interface ExerciseDictionaryRecord {
@@ -24,6 +26,8 @@ export interface ExerciseDictionaryRecord {
   exercise_type: ExerciseType;
   benchmark_target: string | null;
   conversion_factor: number | null;
+  percent_bodyweight_used: number;
+  rounding_increment: number;
 }
 
 export async function createExercise(
@@ -44,6 +48,8 @@ export async function createExercise(
         exercise_type: input.exercise_type,
         benchmark_target: input.benchmark_target ?? null,
         conversion_factor: input.conversion_factor ?? null,
+        percent_bodyweight_used: input.percent_bodyweight_used ?? 0,
+        rounding_increment: input.rounding_increment ?? 2.5,
         created_at: now,
         updated_at: now,
       })

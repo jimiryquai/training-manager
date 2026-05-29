@@ -25,3 +25,6 @@ The AI Coach utilizes the following formulas to manage the athlete's fatigue and
 *   `PRD.md`: Product vision and scope.
 *   `TDD.md`: Architecture and multi-tenant database design.
 *   `AGENTS.md`: Strict system prompts and coding constraints for the Pi SDK.
+
+## Contributing
+This project uses the Pi SDK for AI-assisted development. All agents must adhere to the engineering standards defined in [AGENTS.md](./AGENTS.md).

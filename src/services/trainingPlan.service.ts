@@ -223,12 +223,8 @@ export async function cloneTrainingPlanToTenant(
       circuit_group: string | null;
       order_in_session: number;
       scheme_name: string | null;
-      target_sets: number | null;
-      target_reps: string | null;
-      target_intensity: number | null;
-      target_rpe: number | null;
-      target_tempo: string | null;
-      target_rest_seconds: number | null;
+      prescribed_rest_min: number | null;
+      prescribed_rest_max: number | null;
       coach_notes: string | null;
       created_at: string;
       updated_at: string;
@@ -257,12 +253,8 @@ export async function cloneTrainingPlanToTenant(
             circuit_group: exercise.circuit_group,
             order_in_session: exercise.order_in_session,
             scheme_name: exercise.scheme_name,
-            target_sets: exercise.target_sets,
-            target_reps: exercise.target_reps,
-            target_intensity: exercise.target_intensity,
-            target_rpe: exercise.target_rpe,
-            target_tempo: exercise.target_tempo,
-            target_rest_seconds: exercise.target_rest_seconds,
+            prescribed_rest_min: exercise.prescribed_rest_min,
+            prescribed_rest_max: exercise.prescribed_rest_max,
             coach_notes: exercise.coach_notes,
             created_at: now,
             updated_at: now,

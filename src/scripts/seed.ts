@@ -470,9 +470,8 @@ export default async function seed() {
               exercise_dictionary_id: exerciseId,
               order_in_session: set.setNumber,
               scheme_name: scheme.name,
-              target_sets: 1, // Individual set record
-              target_reps: weekData.reps?.toString() || null,
-              target_intensity: weekData.percentage || null,
+              prescribed_rest_min: null,
+              prescribed_rest_max: null,
               coach_notes: `Set ${set.setNumber} for ${scheme.name}`,
             });
             exerciseRecordCount++;

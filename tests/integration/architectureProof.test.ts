@@ -62,8 +62,8 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
       session_id: templateSession!.id,
       exercise_dictionary_id: exerciseId,
       order_in_session: 1,
-      target_sets: 3,
-      target_reps: '5'
+      prescribed_rest_min: 60,
+      prescribed_rest_max: 90
     });
 
     // 2. Execution: Clone template to Tenant A
@@ -87,8 +87,8 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
     expect(fullClonedPlan?.sessions[0].tenant_id).toBe(TENANT_A);
     expect(fullClonedPlan?.sessions[0].exercises).toHaveLength(1);
     expect(fullClonedPlan?.sessions[0].exercises[0].tenant_id).toBe(TENANT_A);
-    expect(fullClonedPlan?.sessions[0].exercises[0].target_sets).toBe(3);
-    expect(fullClonedPlan?.sessions[0].exercises[0].target_reps).toBe('5');
+    expect(fullClonedPlan?.sessions[0].exercises[0].prescribed_rest_min).toBe(60);
+    expect(fullClonedPlan?.sessions[0].exercises[0].prescribed_rest_max).toBe(90);
 
     // 4. Side Effect Check: Verify template remains untouched and Tenant B sees nothing
     const systemPlans = await db.selectFrom('training_plan')
@@ -137,8 +137,8 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
         session_id: session!.id,
         exercise_dictionary_id: dictId,
         order_in_session: i,
-        target_sets: 3,
-        target_reps: '10'
+        prescribed_rest_min: 90,
+        prescribed_rest_max: 120
       });
       expect(ex).toBeDefined();
       exerciseIds.push(ex!.id);
@@ -149,15 +149,13 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
     const updateResult = await updateSessionExercise(db, {
       id: targetExerciseId,
       tenant_id: TENANT_A,
-      target_sets: 5,         // Change sets
-      target_reps: '3,3,3,3,3', // Change reps string (Agent-Native style)
-      target_rpe: 9.5         // New flattened metric
+      prescribed_rest_min: 120,         // Change rest min
+      prescribed_rest_max: 180          // Change rest max
     });
 
     expect(updateResult).toBeDefined();
-    expect(updateResult?.target_sets).toBe(5);
-    expect(updateResult?.target_reps).toBe('3,3,3,3,3');
-    expect(updateResult?.target_rpe).toBe(9.5);
+    expect(updateResult?.prescribed_rest_min).toBe(120);
+       expect(updateResult?.prescribed_rest_max).toBe(180);
 
     // 3. Verification: No side effects on other exercises
     const allExercises = await db.selectFrom('session_exercise')
@@ -170,17 +168,16 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
     
     // First exercise should be unchanged
     expect(allExercises[0].id).toBe(exerciseIds[0]);
-    expect(allExercises[0].target_sets).toBe(3);
-    expect(allExercises[0].target_reps).toBe('10');
-    expect(allExercises[0].target_rpe).toBeNull();
+    expect(allExercises[0].prescribed_rest_min).toBe(90);
+    expect(allExercises[0].prescribed_rest_max).toBe(120);
 
     // Second exercise should be updated
     expect(allExercises[1].id).toBe(targetExerciseId);
-    expect(allExercises[1].target_sets).toBe(5);
+    expect(allExercises[1].prescribed_rest_min).toBe(120);
 
     // Third exercise should be unchanged
     expect(allExercises[2].id).toBe(exerciseIds[2]);
-    expect(allExercises[2].target_sets).toBe(3);
+    expect(allExercises[2].prescribed_rest_min).toBe(90);
   });
 
   it('strictly enforces multi-tenant isolation during updates', async () => {
@@ -212,7 +209,7 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
       session_id: sessionB!.id,
       exercise_dictionary_id: dictIdB,
       order_in_session: 1,
-      target_sets: 1
+      prescribed_rest_min: 60
     });
     expect(exerciseB).toBeDefined();
 
@@ -220,7 +217,7 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
     const maliciousUpdate = await updateSessionExercise(db, {
       id: exerciseB!.id,
       tenant_id: TENANT_A, // Maliciously using different tenant_id
-      target_sets: 999
+      prescribed_rest_min: 999
     });
 
     // 3. Verification: Update should fail (return undefined) and record remain untouched
@@ -231,7 +228,7 @@ describe('Architecture Proof: Multi-Tenant Cloning & Flattened Surgical Updates'
       .selectAll()
       .executeTakeFirst();
     
-    expect(verifiedB?.target_sets).toBe(1);
+    expect(verifiedB?.prescribed_rest_min).toBe(60);
     expect(verifiedB?.tenant_id).toBe(TENANT_B);
   });
 });
