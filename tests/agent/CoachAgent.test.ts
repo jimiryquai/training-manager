@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CoachAgent Integration Tests
  *

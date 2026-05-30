@@ -2,7 +2,8 @@
  * ACWR (Acute:Chronic Workload Ratio) tool handlers for CoachAgent
  */
 
-import type { ToolHandler, ToolContext, ToolParams } from './types';
+import { Type, defineTool } from '@flue/runtime';
+import type { ToolContext } from './types';
 import {
   calculateACWR,
   calculateHistoricalACWR,
@@ -11,22 +12,39 @@ import {
 /**
  * Calculate Acute:Chronic Workload Ratio for injury risk assessment
  */
-export const getACWR: ToolHandler = async (ctx: ToolContext, params: ToolParams) => {
-  return calculateACWR(ctx.db, {
-    tenant_id: ctx.tenantId,
-    user_id: ctx.userId,
-    date: (params.date as string) || new Date().toISOString().split('T')[0],
-  });
-};
+export const createGetACWRTool = (ctx: ToolContext) => defineTool({
+  name: 'get_acwr',
+  description: 'Calculate Acute:Chronic Workload Ratio for injury risk assessment for a specific date',
+  parameters: Type.Object({
+    date: Type.Optional(Type.String({ description: 'Date in YYYY-MM-DD format. Defaults to today.' })),
+  }),
+  execute: async ({ date }) => {
+    const result = await calculateACWR(ctx.db, {
+      tenant_id: ctx.tenantId,
+      user_id: ctx.userId,
+      date: date || new Date().toISOString().split('T')[0],
+    });
+    return JSON.stringify(result);
+  }
+});
 
 /**
  * Get ACWR trend over a date range for pattern analysis
  */
-export const getACWRTrend: ToolHandler = async (ctx: ToolContext, params: ToolParams) => {
-  return calculateHistoricalACWR(ctx.db, {
-    tenant_id: ctx.tenantId,
-    user_id: ctx.userId,
-    start_date: params.start_date as string,
-    end_date: params.end_date as string,
-  });
-};
+export const createGetACWRTrendTool = (ctx: ToolContext) => defineTool({
+  name: 'get_acwr_trend',
+  description: 'Get ACWR trend over a date range for pattern analysis',
+  parameters: Type.Object({
+    start_date: Type.String({ description: 'Start date in YYYY-MM-DD format' }),
+    end_date: Type.String({ description: 'End date in YYYY-MM-DD format' }),
+  }),
+  execute: async ({ start_date, end_date }) => {
+    const result = await calculateHistoricalACWR(ctx.db, {
+      tenant_id: ctx.tenantId,
+      user_id: ctx.userId,
+      start_date,
+      end_date,
+    });
+    return JSON.stringify(result);
+  }
+});

@@ -4,7 +4,7 @@ import { defineDurableSession } from "rwsdk/auth";
 import { env } from "cloudflare:workers";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
-import { routeAgentRequest } from "agents";
+import { flue } from "@flue/runtime/app";
 
 import { Document } from "@/app/document";
 import { setCommonHeaders } from "@/app/headers";
@@ -14,7 +14,6 @@ import CoachTestPage from "@/app/pages/coachTest";
 import { AppLayout } from "@/app/layouts/AppLayout";
 import { createTRPCHandler } from "@/trpc/handler";
 import { UserSession, type SessionData } from "./session/UserSession";
-import { CoachAgent } from "./agent/CoachAgent";
 import type { Database } from "./db/schema";
 import { handleVitestRequest } from "rwsdk-community/worker";
 import * as testUtils from "./app/test-utils";
@@ -23,10 +22,6 @@ import * as testUtils from "./app/test-utils";
 // Environment Type Export
 // ============================================================================
 
-/**
- * Cloudflare Worker environment bindings
- * Import this type when accessing env in services or agents
- */
 export type Env = {
   DB: D1Database;
   AI: Ai;
@@ -38,7 +33,7 @@ export type Env = {
 };
 
 export type AppContext = {
-  session?: { userId: string; tenantId: string } | null;
+  session?: { userId: string; tenantId: string; role?: string } | null;
 };
 
 export const sessionStore = defineDurableSession({
@@ -49,7 +44,7 @@ export const sessionStore = defineDurableSession({
   } & Rpc.DurableObjectBranded>,
 });
 
-export { UserSession, CoachAgent };
+export { UserSession };
 
 function getDb() {
   return new Kysely<Database>({
@@ -60,16 +55,15 @@ function getDb() {
 const trpcHandler = createTRPCHandler({
   sessionStore,
   db: getDb(),
-  allowedOrigin: env.ALLOWED_ORIGIN,
+  allowedOrigin: (env as unknown as Env).ALLOWED_ORIGIN,
 });
 
-export default defineApp([
+const appFetch = defineApp([
   setCommonHeaders(),
   async function sessionMiddleware({ request, ctx }) {
     const session = await sessionStore.load(request);
     ctx.session = session;
 
-    // Dev-only: Check for dev session cookie
     if (!session && import.meta.env.DEV) {
       const cookies = request.headers.get("cookie") || "";
       const devSession = cookies.match(/dev_session=([^;]+)/)?.[1];
@@ -78,30 +72,17 @@ export default defineApp([
         ctx.session = {
           userId: "seed-user-001",
           tenantId: "seed-tenant-001",
-          role: "admin", // Dev bypass assumes admin role
+          role: "admin", 
         };
       }
     }
   },
-  // Agent WebSocket routing - handles /agents/:agent/:name
-  async function agentRouting({ request }): Promise<Response | void> {
-    const url = new URL(request.url);
 
-    // Check if this is an agent request
-    if (url.pathname.startsWith("/agents/")) {
-      const response = await routeAgentRequest(request, env);
-      if (response) {
-        return response;
-      }
-    }
-
-    // Return void to continue to next middleware
-  },
   route("/_test", {
-    post: ({ request }) => handleVitestRequest(request, testUtils),
+    post: ({ request }) => handleVitestRequest(request, testUtils as any),
   }),
   route("/trpc/*", async ({ request, ctx }) => {
-    return trpcHandler(request, ctx.session ?? undefined);
+    return trpcHandler(request, ctx.session as any);
   }),
   route("/dev-login", async ({ request }) => {
     if (!import.meta.env.DEV) {
@@ -122,3 +103,19 @@ export default defineApp([
     ])
   ])
 ]);
+
+export default {
+  async queue(batch: MessageBatch, env: Env): Promise<void> {
+    console.log(`[Queue] Processing ${batch.messages.length} proactive shadow coach triggers`);
+    // Iterate over messages and dispatch to Flue, or call a scheduled workflow
+  },
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname.startsWith("/agents/") || url.pathname.startsWith("/workflows/")) {
+      const flueApp = flue();
+      return flueApp.fetch(request, env, ctx);
+    }
+    // @ts-ignore
+    return appFetch.fetch ? appFetch.fetch(request, env, ctx) : appFetch(request, env, ctx);
+  }
+};

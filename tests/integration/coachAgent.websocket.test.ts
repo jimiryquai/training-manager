@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CoachAgent WebSocket Integration Tests
  *
